@@ -75,7 +75,7 @@ overscan matrix — wakestates × borders  (frames 320..322, 3 consecutive)
 ## Quick start
 
 ```bash
-git clone https://github.com/spanz/lockstep && cd lockstep
+git clone https://github.com/tcriess/lockstep && cd lockstep
 
 python -m st68k annotate  myfile.s          # per-line + running cycle counts
 python -m st68k build     line.src.s -o line.s   # turn ;@pad/;@budget intent into exact filler

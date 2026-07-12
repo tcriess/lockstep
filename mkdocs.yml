@@ -5,10 +5,9 @@ site_description: >-
 site_author: Thorsten
 copyright: © Thorsten
 
-# TODO(you): set these once the GitHub repo exists.
-site_url: https://spanz.github.io/lockstep/
-repo_url: https://github.com/spanz/lockstep
-repo_name: spanz/lockstep
+site_url: https://tcriess.github.io/lockstep/
+repo_url: https://github.com/tcriess/lockstep
+repo_name: tcriess/lockstep
 edit_uri: edit/main/docs/
 
 docs_dir: docs
@@ -108,7 +107,7 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/spanz/lockstep
+      link: https://github.com/tcriess/lockstep
 
 nav:
   - Home: index.md

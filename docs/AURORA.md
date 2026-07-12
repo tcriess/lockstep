@@ -17,8 +17,8 @@ whole thing back out — is **deleted**, and derived by the tool instead.
 That claim is falsifiable, which is the point of doing it: if the tool's cost model is wrong
 anywhere, the numbers come out different and the picture falls apart.
 
-The code is [`examples/aurora/aurora.py`](https://github.com/spanz/lockstep/blob/main/examples/aurora/aurora.py); the untouched original is
-[`examples/aurora/orig/aurora.s`](https://github.com/spanz/lockstep/blob/main/examples/aurora/orig/aurora.s).
+The code is [`examples/aurora/aurora.py`](https://github.com/tcriess/lockstep/blob/main/examples/aurora/aurora.py); the untouched original is
+[`examples/aurora/orig/aurora.s`](https://github.com/tcriess/lockstep/blob/main/examples/aurora/orig/aurora.s).
 
 ---
 
