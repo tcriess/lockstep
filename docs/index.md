@@ -1,5 +1,7 @@
 ---
-title: Lockstep
+# No `title:` here on purpose. Material appends the page title to site_name, so a title identical to
+# the site name gives the home page a browser tab reading "Lockstep - Lockstep". With it omitted the
+# home page falls back to site_name alone. Every other page keeps its own title.
 description: Cycle-exact tooling for full-sync Atari ST code — pegs, gaps, a frame budget, and an emulator that tells you the borders opened.
 ---
 
