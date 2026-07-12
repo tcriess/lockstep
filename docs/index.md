@@ -9,6 +9,9 @@ description: Cycle-exact tooling for full-sync Atari ST code — pegs, gaps, a f
 hardware events belong and what work you want run; it counts the cycles, sizes the `nop` filler, packs
 your effect into the gaps, and then proves the result in a cycle-exact emulator.
 
+:material-github: **The code is on GitHub: [tcriess/lockstep](https://github.com/tcriess/lockstep)** —
+the toolkit, the examples, and the tests that back every claim on this site.
+
 ![Aurora, rebuilt by Lockstep: an Atari ST frame with all four borders open — sprites in the opened top border and a bevelled scroller running through the opened bottom one, the picture reaching every edge of the tube](blog/posts/img/aurora.png)
 
 On an Atari ST, every scanline is exactly **512 CPU cycles**, and a border-opening write has to land on

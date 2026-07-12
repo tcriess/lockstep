@@ -4,6 +4,8 @@
 belong and what work you want run; Lockstep counts the cycles, sizes the filler, packs your effect
 into the gaps, and then proves the result in a cycle-exact emulator.
 
+📖 **Documentation and devlog: [tcriess.github.io/lockstep](https://tcriess.github.io/lockstep/)**
+
 ![Aurora, rebuilt by Lockstep: an Atari ST frame with all four borders open — sprites in the opened top border and a bevelled scroller running through the opened bottom one, the picture reaching every edge of the tube](docs/blog/posts/img/aurora.png)
 
 ## The problem
@@ -131,6 +133,10 @@ docs/            tutorial, overscan how-to, design notes, and the devlog
 ```
 
 ## Documentation
+
+Everything below is published as a site — rendered, searchable, cross-linked, with the devlog as a
+blog: **[tcriess.github.io/lockstep](https://tcriess.github.io/lockstep/)**. The links here go to the
+Markdown sources in this repo, which say the same thing.
 
 - **[Tutorial](docs/TUTORIAL.md)** — the practical guide: the cycle engine, the `;@` directives, the
   scheduler, the oracle.
