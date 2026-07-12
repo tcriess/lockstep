@@ -149,18 +149,21 @@ Markdown sources in this repo, which say the same thing.
 ## Status
 
 The cycle engine, the directive preprocessor, the scheduler, the overscan layer and the Hatari oracle
-are all in use. The acceptance test was rebuilding a known-good demo through the toolkit: from the peg
-offsets alone it re-derives that demo's hand-counted `dcb.w 90 / 13 / 12`, line after line, and every
-scanline measures exactly 512c on cycle-exact silicon.
+are all in use. The acceptance test was rebuilding a known-good demo — a shipped 4kb intro — through
+the toolkit, with every cycle number its author had counted by hand deleted and re-derived: the
+`dcb.w 90 / 13 / 12` on each border line, and the nine `dcb.w` pads balancing the conditionals in its
+VBL preamble. The tool re-derives all of them, every scanline measures exactly 512c on cycle-exact
+silicon, and the result comes out **pixel-identical to the original** — on all four wakestates, which
+the original itself does not manage. See [the capstone](docs/AURORA.md).
 
-`python -m pytest` — **103 passing** (~2m45s; 92 of them are static and run in under 10s). The tests
+`python -m pytest` — **113 passing** (~4m35s; 100 of them are static and run in ~13s). The tests
 that drive a real emulator are marked `@pytest.mark.hatari` and are *skipped*, visibly, when Hatari or
 a TOS ROM is absent:
 
 ```
 $ python -m pytest -q          # with the oracle
-103 passed in 165s
+113 passed in 275s
 
 $ python -m pytest -q          # without it
-92 passed, 11 skipped in 9s
+100 passed, 13 skipped in 13s
 ```
