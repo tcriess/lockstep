@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="880" height="320" role="img" aria-label="One scanline is 512 CPU cycles: three border-switch pegs at cycles 0, 376 and 444, with nop filler sized to fill the 360, 52 and 48 cycle gaps between them.">
+  <style>
+    .bg    { fill: #fbfbfd; stroke: #e3e5ea; }
+    .ttl   { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .sub   { font: 400 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .lbl   { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .tick  { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .code  { font: 400 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #1c1e26; }
+    .peg   { fill: #d4443c; }
+    .pegn  { font: 600 11px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #d4443c; }
+    .pegc  { font: 400 10px ui-monospace, "SF Mono", Menlo, monospace; fill: #b5403a; }
+    .gap   { fill: #eceef2; stroke: #d8dae0; }
+    .gapt  { font: 400 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .axis  { stroke: #d8dae0; }
+    .lead  { stroke: #d4443c; stroke-width: 1; }
+  </style>
+
+  <rect class="bg" x="0.5" y="0.5" width="879" height="319" rx="8"/>
+
+  <text class="ttl" x="32" y="34">One scanline = 512 CPU cycles</text>
+  <text class="sub" x="32" y="55">The border switches are nailed to exact cycles. Everything between them is filler you must size exactly right.</text>
+
+  <!-- peg callouts (name + cost), well above the bar -->
+  <text class="pegn" x="72"  y="92"  text-anchor="middle">LEFT border</text>
+  <text class="pegc" x="72"  y="106" text-anchor="middle">16c</text>
+  <text class="pegn" x="630" y="92"  text-anchor="middle">RIGHT border</text>
+  <text class="pegc" x="630" y="106" text-anchor="middle">16c</text>
+  <text class="pegn" x="734" y="92"  text-anchor="middle">EXTRA flip</text>
+  <text class="pegc" x="734" y="106" text-anchor="middle">20c</text>
+
+  <line class="lead" x1="72"  y1="112" x2="72"  y2="132"/>
+  <line class="lead" x1="630" y1="112" x2="630" y2="132"/>
+  <line class="lead" x1="734" y1="112" x2="734" y2="132"/>
+
+  <!-- the bar: cycles 0..512 mapped to x 60..820  (1.4844 px/cycle) -->
+  <rect class="gap" x="83.8"  y="132" width="534.2" height="44" rx="2"/>
+  <rect class="gap" x="641.9" y="132" width="77.2"  height="44" rx="2"/>
+  <rect class="gap" x="748.8" y="132" width="71.2"  height="44" rx="2"/>
+  <rect class="peg" x="60"    y="132" width="23.8"  height="44" rx="2"/>
+  <rect class="peg" x="618.0" y="132" width="23.9"  height="44" rx="2"/>
+  <rect class="peg" x="719.1" y="132" width="29.7"  height="44" rx="2"/>
+
+  <text class="gapt" x="351" y="159" text-anchor="middle">360c free</text>
+
+  <!-- gap sizes, below the bar -->
+  <text class="gapt" x="680" y="196" text-anchor="middle">52c</text>
+  <text class="gapt" x="784" y="196" text-anchor="middle">48c</text>
+
+  <!-- axis + ticks, below that -->
+  <line class="axis" x1="60" y1="208" x2="820" y2="208"/>
+  <line class="axis" x1="60"  y1="204" x2="60"  y2="212"/>
+  <line class="axis" x1="618" y1="204" x2="618" y2="212"/>
+  <line class="axis" x1="719" y1="204" x2="719" y2="212"/>
+  <line class="axis" x1="820" y1="204" x2="820" y2="212"/>
+  <text class="tick" x="60"  y="228" text-anchor="middle">0</text>
+  <text class="tick" x="618" y="228" text-anchor="middle">376</text>
+  <text class="tick" x="719" y="228" text-anchor="middle">444</text>
+  <text class="tick" x="820" y="228" text-anchor="middle">512</text>
+
+  <!-- legend -->
+  <rect class="peg" x="32" y="256" width="12" height="12" rx="2"/>
+  <text class="lbl" x="52" y="266">peg</text>
+  <text class="sub" x="84" y="266">— a hardware event, immovable, on its exact cycle</text>
+  <rect class="gap" x="32" y="280" width="12" height="12" rx="2"/>
+  <text class="lbl" x="52" y="290">gap</text>
+  <text class="sub" x="84" y="290">— free cycles: pour your effect in, pad the remainder with nops</text>
+
+  <text class="code" x="848" y="266" text-anchor="end">16 + 360 + 16 + 52 + 20 + 48 = 512</text>
+  <text class="gapt" x="848" y="290" text-anchor="end">emits  dcb.w 90 / 13 / 12</text>
+</svg>

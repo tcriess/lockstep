@@ -1,0 +1,45 @@
+# --- Build artifacts (rebuildable from the .py emitters / Lockstep directives) ---
+# NB: example *.tos demo binaries ARE tracked (small, handy to run without building);
+# the .wsdbg/ scratch dir (ignored below) keeps its throwaway *.tos out.
+*.prg
+*.bin
+*.o
+
+# `make compressed` STrinkler packs + demo.py's generated dump/screenshot (all rebuildable).
+examples/aurora/democ.tos
+examples/aurora/aurorac.tos
+examples/bordopen/bordopenc.tos
+examples/bordopen/bordwsc.tos
+examples/aurora/demo.s
+examples/aurora/demo.png
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# --- Tooling / local (Claude Code state, wakestate debug dumps) ---
+/.claude
+/.wsdbg
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+.obsidian/
+
+# MkDocs build output
+site/
+
+# scratch output from the aurora example (it rips its font from TOS at runtime; nothing here
+# is an input, and nothing here needs to be checked in)
+examples/aurora/build/

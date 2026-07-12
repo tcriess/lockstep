@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360" role="img" aria-label="You declare pegs and work; the packer pours the work into the gaps between the pegs and sizes the nop filler so the line lands on exactly 512 cycles.">
+  <style>
+    .bg    { fill: #fbfbfd; stroke: #e3e5ea; }
+    .ttl   { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .sub   { font: 400 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .hd    { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; letter-spacing: .06em; }
+    .lbl   { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .mono  { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #1c1e26; }
+    .monom { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .peg   { fill: #d4443c; }
+    .work  { fill: #2563eb; }
+    .nop   { fill: #e6e8ee; stroke: #cfd3db; }
+    .arrow { fill: #9aa1ad; }
+    .axis  { stroke: #d8dae0; }
+    .ok    { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #15803d; }
+  </style>
+
+  <rect class="bg" x="0.5" y="0.5" width="879" height="359" rx="8"/>
+
+  <text class="ttl" x="32" y="36">Declare intent. The tool does the arithmetic.</text>
+  <text class="sub" x="32" y="57">You say where the hardware events are and what work you want run. The packer sizes every gap.</text>
+
+  <!-- ============ YOU DECLARE ============ -->
+  <text class="hd" x="32" y="94">YOU DECLARE</text>
+
+  <!-- pegs -->
+  <text class="lbl" x="32" y="122">Pegs</text>
+  <text class="monom" x="32" y="138">immovable</text>
+  <rect class="peg" x="140" y="108" width="26" height="22" rx="2"/>
+  <text class="mono" x="176" y="123">@0</text>
+  <rect class="peg" x="240" y="108" width="26" height="22" rx="2"/>
+  <text class="mono" x="276" y="123">@376</text>
+  <rect class="peg" x="352" y="108" width="26" height="22" rx="2"/>
+  <text class="mono" x="388" y="123">@444</text>
+
+  <!-- work -->
+  <text class="lbl" x="32" y="176">Work</text>
+  <text class="monom" x="32" y="192">movable</text>
+  <rect class="work" x="140" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="166" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="192" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="218" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="244" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="270" y="162" width="20" height="22" rx="2"/>
+  <rect class="work" x="296" y="162" width="20" height="22" rx="2"/>
+  <text class="monom" x="326" y="177">… × 13 scroller columns, 32c each</text>
+
+  <!-- arrow -->
+  <path class="arrow" d="M 430 226 l 0 -14 l 22 0 l 0 -8 l 18 15 l -18 15 l 0 -8 l -22 0 z" transform="translate(-24,0)"/>
+  <text class="hd" x="470" y="228">PACKER</text>
+
+  <line class="axis" x1="32" y1="252" x2="848" y2="252"/>
+
+  <!-- ============ YOU GET ============ -->
+  <text class="hd" x="32" y="282">YOU GET</text>
+
+  <!-- packed line: scale 512c -> 640px starting at x=176 (1.25 px/c) -->
+  <!-- peg 0: 0..16 -->
+  <rect class="peg"  x="176"   y="296" width="20"   height="26" rx="2"/>
+  <!-- gap 16..376 : 11 columns (32c each = 352c) then 8c nop -->
+  <rect class="work" x="196"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="236"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="276"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="316"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="356"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="396"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="436"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="476"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="516"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="556"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="work" x="596"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="nop"  x="636"   y="296" width="10"   height="26" rx="1"/>
+  <!-- peg 376: 376..392 -->
+  <rect class="peg"  x="646"   y="296" width="20"   height="26" rx="2"/>
+  <!-- gap 392..444: 1 column + nops -->
+  <rect class="work" x="666"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="nop"  x="706"   y="296" width="25"   height="26" rx="1"/>
+  <!-- peg 444: 444..464 -->
+  <rect class="peg"  x="731"   y="296" width="25"   height="26" rx="2"/>
+  <!-- gap 464..512: 1 column + nops -->
+  <rect class="work" x="756"   y="296" width="40"   height="26" rx="1"/>
+  <rect class="nop"  x="796"   y="296" width="20"   height="26" rx="1"/>
+
+  <text class="lbl"  x="32"  y="308">One line</text>
+  <text class="monom" x="32" y="324">512c exactly</text>
+
+  <text class="monom" x="176" y="342">0</text>
+  <text class="monom" x="646" y="342" text-anchor="middle">376</text>
+  <text class="monom" x="743" y="342" text-anchor="middle">444</text>
+  <text class="monom" x="816" y="342" text-anchor="end">512</text>
+
+  <text class="ok" x="848" y="282" text-anchor="end">every peg on its mark ✓</text>
+
+  <!-- legend -->
+  <rect class="nop" x="176" y="272" width="10" height="10" rx="1"/>
+  <text class="monom" x="192" y="281">nop filler, sized by the tool — never counted by hand</text>
+</svg>

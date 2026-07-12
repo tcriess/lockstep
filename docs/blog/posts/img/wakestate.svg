@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360" role="img" aria-label="The wakestate lottery: the CPU always writes on counted cycle 376, but the beam sits a few cycles further along depending on the power-on clock phase, so the same write lands inside the GLUE's narrow three-cycle window on wakestates 1 and 3 and misses it on wakestates 4 and 2.">
+  <style>
+    .bg    { fill: #fbfbfd; stroke: #e3e5ea; }
+    .ttl   { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .sub   { font: 400 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .lbl   { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .lbls  { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .mono  { font: 400 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .axis  { stroke: #d8dae0; }
+    .win   { fill: #dff0e6; stroke: #15803d; stroke-dasharray: 3 2; }
+    .wint  { font: 600 11px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #15803d; }
+    .hit   { fill: #15803d; }
+    .miss  { fill: #d4443c; }
+    .hitn  { font: 600 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #15803d; }
+    .missn { font: 600 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #d4443c; }
+    .hitt  { font: 600 10px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #15803d; }
+    .misst { font: 600 10px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #d4443c; }
+    .cpu   { fill: #2563eb; }
+    .cput  { font: 600 11px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #2563eb; }
+  </style>
+
+  <rect class="bg" x="0.5" y="0.5" width="879" height="359" rx="8"/>
+
+  <text class="ttl" x="32" y="36">Same counted cycle. Four different beams.</text>
+  <text class="sub" x="32" y="57">The wakestate is the power-on phase between the CPU clock and the video clock. It shifts the beam under your feet.</text>
+
+  <!-- ============ CPU row ============ -->
+  <text class="lbl"  x="32" y="106">CPU</text>
+  <text class="lbls" x="32" y="122">counts cycles</text>
+
+  <line class="axis" x1="150" y1="112" x2="700" y2="112"/>
+  <rect class="cpu"  x="437" y="102" width="6" height="20" rx="1"/>
+  <text class="cput" x="440" y="94" text-anchor="middle">write at cycle 376</text>
+  <text class="mono" x="848" y="116" text-anchor="end">move.b d4,(a0)</text>
+
+  <text class="sub"  x="150" y="146">Always the same instruction, on the same counted cycle, every frame.</text>
+
+  <!-- ============ BEAM row ============ -->
+  <text class="lbl"  x="32" y="238">BEAM</text>
+  <text class="lbls" x="32" y="254">runs on the</text>
+  <text class="lbls" x="32" y="268">video clock</text>
+
+  <!-- the GLUE window (zoomed) -->
+  <rect class="win"  x="392" y="196" width="96" height="56" rx="3"/>
+  <text class="wint" x="440" y="188" text-anchor="middle">GLUE window ≈ 3 cycles</text>
+
+  <line class="axis" x1="150" y1="224" x2="700" y2="224"/>
+
+  <!-- where the beam actually is when that one write lands -->
+  <rect class="hit"  x="412" y="212" width="6" height="24" rx="1"/>
+  <text class="hitn" x="415" y="278" text-anchor="middle">ws1</text>
+  <text class="hitt" x="415" y="294" text-anchor="middle">open</text>
+
+  <rect class="hit"  x="462" y="212" width="6" height="24" rx="1"/>
+  <text class="hitn" x="465" y="278" text-anchor="middle">ws3</text>
+  <text class="hitt" x="465" y="294" text-anchor="middle">open</text>
+
+  <rect class="miss" x="532" y="212" width="6" height="24" rx="1"/>
+  <text class="missn" x="535" y="278" text-anchor="middle">ws4</text>
+  <text class="misst" x="535" y="294" text-anchor="middle">CLOSED</text>
+
+  <rect class="miss" x="602" y="212" width="6" height="24" rx="1"/>
+  <text class="missn" x="605" y="278" text-anchor="middle">ws2</text>
+  <text class="misst" x="605" y="294" text-anchor="middle">CLOSED</text>
+
+  <text class="mono" x="848" y="228" text-anchor="end">hatari --video-timing ws1..ws4</text>
+  <text class="lbls" x="700" y="294" text-anchor="start">(zoomed: it's</text>
+  <text class="lbls" x="700" y="308" text-anchor="start">only a few cycles)</text>
+
+  <text class="sub" x="150" y="332">Nothing in the program changed — the beam just moved out from under it. Three cycles is the whole window.</text>
+</svg>

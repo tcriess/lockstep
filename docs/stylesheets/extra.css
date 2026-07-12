@@ -1,0 +1,28 @@
+/* Screenshots are 832x552 Hatari captures of a CRT-shaped picture: show them at full width,
+   pixel-crisp (no smoothing — this is 1980s hardware output), on a neutral mat so the black
+   overscan border reads as part of the image rather than as a gap in the page. */
+.md-typeset img[src*="/img/"] {
+  width: 100%;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  background: var(--md-default-fg-color--lightest);
+}
+
+/* The SVG diagrams carry their own light card background; don't mat them, don't pixelate. */
+.md-typeset img[src$=".svg"] {
+  image-rendering: auto;
+  background: none;
+}
+
+/* The borders-closed / borders-open comparison in post 1 is a two-column table of images.
+   Kill the cell padding so the two frames sit side by side and can be compared directly. */
+.md-typeset table:not([class]) td {
+  vertical-align: middle;
+}
+
+/* Lockstep's `;@` directives are comments to the assembler but instructions to the toolkit.
+   The lexer gives them their own token — make them look like the load-bearing lines they are. */
+.md-typeset .highlight .cp {
+  color: var(--md-accent-fg-color);
+  font-weight: 600;
+}

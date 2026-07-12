@@ -1,0 +1,129 @@
+site_name: Lockstep
+site_description: >-
+  Cycle-exact tooling for full-sync Atari ST code — and a devlog about opening all four borders
+  on a plain ST, on every wakestate.
+site_author: Thorsten
+copyright: © Thorsten
+
+# TODO(you): set these once the GitHub repo exists.
+site_url: https://spanz.github.io/lockstep/
+repo_url: https://github.com/spanz/lockstep
+repo_name: spanz/lockstep
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  icon:
+    logo: material/television-classic
+    repo: fontawesome/brands/github
+  favicon: blog/posts/img/borders-open.png
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+plugins:
+  - search
+  - blog:
+      blog_dir: blog
+      blog_toc: true
+      post_url_format: "{slug}"
+      post_excerpt: optional
+      post_readtime: true
+      authors: false
+      categories_allowed:
+        - Overscan
+        - Toolkit
+        - Timing
+        - Sound
+  - rss:
+      match_path: blog/posts/.*
+      date_from_meta:
+        as_creation: date
+      categories:
+        - categories
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  # Renders :material-xyz: shortcodes as SVG icons (used by the cards on the home page).
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        # ```asm blocks are Motorola 68000, not GAS. Pygments has no 68k lexer, so we supply one
+        # (tools/pygments-m68k) — it also highlights Lockstep's `;@` directives distinctly.
+        # Keeping the fence named `asm` means GitHub still highlights the raw Markdown.
+        - name: asm
+          class: highlight
+          format: !!python/name:pygments_m68k.fence
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/spanz/lockstep
+
+nav:
+  - Home: index.md
+  - Devlog:
+      - blog/index.md
+  - Toolkit:
+      - Tutorial: TUTORIAL.md
+      - Opening the borders: HOWTO_OVERSCAN.md
+      - 'Capstone: rebuilding Aurora': AURORA.md
+  - Internals:
+      - Design: DESIGN.md
+      - ST timing reference: TIMING.md
+
+# Obsidian's workspace files live alongside the posts, and the figure generator is a build tool,
+# not a page. Keep both out of the published site.
+exclude_docs: |
+  .obsidian/
+  blog/posts/img/make_images.py

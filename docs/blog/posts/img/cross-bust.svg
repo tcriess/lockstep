@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 462" width="880" height="462" role="img" aria-label="The bottom border decision is made at the scanline boundary. A 60 Hz pulse contained inside the bust line has already been restored to 50 Hz by the time the decision happens, so it misses on some wakestates. Setting 60 Hz late and restoring it early on the next line straddles the boundary, so every wakestate sees it.">
+  <style>
+    .bg     { fill: #fbfbfd; stroke: #e3e5ea; }
+    .ttl    { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .sub    { font: 400 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .note   { font: 400 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .rowlbl { font: 400 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #1c1e26; }
+    .inbar  { font: 600 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #1c1e26; }
+    .tag    { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .hz50   { fill: #dfe3ea; }
+    .hz60   { fill: #f6c453; }
+    .bound  { stroke: #1c1e26; stroke-width: 2; stroke-dasharray: 4 3; }
+    .boundt { font: 600 11px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .lead   { stroke: #6b7280; stroke-width: 1; }
+    .badh   { font: 600 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #d4443c; }
+    .goodh  { font: 600 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #15803d; }
+    .badv   { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #d4443c; }
+    .goodv  { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #15803d; }
+    .badbx  { fill: #fdf2f1; stroke: #e8b4b0; }
+    .goodbx { fill: #f1f9f4; stroke: #a8d6bb; }
+  </style>
+
+  <rect class="bg" x="0.5" y="0.5" width="879" height="461" rx="8"/>
+
+  <text class="ttl" x="32" y="36">The bottom border is decided between the lines, not inside one</text>
+  <text class="sub" x="32" y="57">The GLUE asks "is the frame over?" exactly at the scanline boundary. Your 60 Hz flip has to still be there when it asks.</text>
+
+  <!-- ===================== PANEL A ===================== -->
+  <rect class="badbx" x="32" y="80" width="816" height="170" rx="6"/>
+  <text class="badh" x="48" y="108">✗  A pulse inside the line</text>
+  <text class="note" x="232" y="108">set 60 Hz, hold, restore 50 Hz — all before the line ends</text>
+
+  <text class="boundt" x="606" y="136">boundary: the GLUE decides here</text>
+
+  <text class="rowlbl" x="48" y="164">bust line</text>
+  <rect class="hz50" x="140" y="148" width="360" height="24" rx="2"/>
+  <rect class="hz60" x="500" y="148" width="65"  height="24" rx="2"/>
+  <rect class="hz50" x="565" y="148" width="35"  height="24" rx="2"/>
+  <text class="inbar" x="532" y="164" text-anchor="middle">60 Hz</text>
+
+  <text class="rowlbl" x="48" y="196">next line</text>
+  <rect class="hz50" x="600" y="180" width="240" height="24" rx="2"/>
+  <text class="inbar" x="720" y="196" text-anchor="middle">50 Hz</text>
+
+  <line class="bound" x1="600" y1="142" x2="600" y2="210"/>
+  <line class="lead"  x1="582" y1="176" x2="582" y2="192"/>
+  <text class="tag"   x="576" y="204" text-anchor="end">restored, just too early</text>
+
+  <text class="badv" x="140" y="238">At the boundary the register already reads 50 Hz again — so on the wakestates whose phase runs late, the bottom border stays shut.</text>
+
+  <!-- ===================== PANEL B ===================== -->
+  <rect class="goodbx" x="32" y="266" width="816" height="170" rx="6"/>
+  <text class="goodh" x="48" y="294">✓  A flip that straddles the boundary</text>
+  <text class="note" x="290" y="294">set 60 Hz late and leave it; restore 50 Hz early on the next line</text>
+
+  <text class="boundt" x="606" y="322">boundary: the GLUE decides here</text>
+
+  <text class="rowlbl" x="48" y="350">bust line</text>
+  <rect class="hz50" x="140" y="334" width="360" height="24" rx="2"/>
+  <rect class="hz60" x="500" y="334" width="100" height="24" rx="2"/>
+  <text class="inbar" x="550" y="350" text-anchor="middle">60 Hz</text>
+  <text class="tag"   x="500" y="328">set @500</text>
+
+  <text class="rowlbl" x="48" y="382">next line</text>
+  <rect class="hz60" x="600" y="366" width="45"  height="24" rx="2"/>
+  <rect class="hz50" x="645" y="366" width="195" height="24" rx="2"/>
+  <text class="inbar" x="742" y="382" text-anchor="middle">50 Hz</text>
+  <line class="lead"  x1="645" y1="392" x2="645" y2="400"/>
+  <text class="tag"   x="651" y="404">restore @20</text>
+
+  <line class="bound" x1="600" y1="328" x2="600" y2="396"/>
+
+  <text class="goodv" x="140" y="424">The 60 Hz spans the boundary, so the decision sees it on every wakestate — the bottom border opens on all four.</text>
+</svg>

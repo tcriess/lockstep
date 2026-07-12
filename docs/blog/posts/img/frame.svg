@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="A PAL frame is 160256 cycles. The border-opening skeleton — handler wrap, sync prelude and 260 counted display lines — spends 151674 of them, leaving 8582 cycles of slack for the post-display tail.">
+  <style>
+    .bg     { fill: #fbfbfd; stroke: #e3e5ea; }
+    .ttl    { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .sub    { font: 400 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6b7280; }
+    .seg    { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+    .mono   { font: 400 11px ui-monospace, "SF Mono", Menlo, monospace; fill: #6b7280; }
+    .inbar  { font: 600 12px ui-monospace, "SF Mono", Menlo, monospace; fill: #ffffff; }
+    .wrap   { fill: #9aa1ad; }
+    .prel   { fill: #7c9ec4; }
+    .bands  { fill: #2563eb; }
+    .slack  { fill: #f6c453; stroke: #b45309; }
+    .slackn { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #b45309; }
+    .axis   { stroke: #d8dae0; }
+    .lead   { stroke: #b45309; stroke-width: 1; }
+    .foot   { font: 600 12px ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1c1e26; }
+  </style>
+
+  <rect class="bg" x="0.5" y="0.5" width="879" height="299" rx="8"/>
+
+  <text class="ttl" x="32" y="36">Where a frame's 160,256 cycles actually go</text>
+  <text class="sub" x="32" y="57">The border skeleton is a fixed cost. What's left is the slack — and the slack is a budget, not a suggestion.</text>
+
+  <!-- segment labels above -->
+  <text class="seg"    x="80"  y="96"  text-anchor="middle">sync prelude</text>
+  <text class="seg"    x="465" y="96"  text-anchor="middle">260 counted display lines</text>
+  <text class="slackn" x="848" y="80"  text-anchor="end">SLACK: 8,582c</text>
+  <line class="lead"   x1="826" y1="86" x2="826" y2="104"/>
+
+  <!-- the bar: 160256c over x 32..848 (816px) -->
+  <rect class="wrap"  x="32"    y="104" width="1.7"   height="52"/>
+  <rect class="prel"  x="33.7"  y="104" width="92.8"  height="52"/>
+  <rect class="bands" x="126.5" y="104" width="677.9" height="52"/>
+  <rect class="slack" x="804.4" y="104" width="43.6"  height="52"/>
+
+  <text class="inbar" x="465" y="135" text-anchor="middle">133,120c  =  260 × 512</text>
+
+  <!-- captions below -->
+  <text class="mono" x="80"  y="176" text-anchor="middle">18,226c</text>
+  <text class="mono" x="80"  y="191" text-anchor="middle">lock to the beam</text>
+  <text class="mono" x="465" y="176" text-anchor="middle">every one exactly 512c — this is the part the line model checks</text>
+  <text class="mono" x="848" y="176" text-anchor="end">the tail</text>
+  <text class="mono" x="848" y="191" text-anchor="end">lives here</text>
+
+  <text class="mono" x="32" y="216">(plus 328c of handler wrap at the very start — too small to see at this scale)</text>
+
+  <line class="axis" x1="32" y1="236" x2="848" y2="236"/>
+  <text class="foot" x="32"  y="262">The tail is not a line.</text>
+  <text class="sub"  x="152" y="262">Music replay, counters, pointer bookkeeping — none of it is 512-cycle-shaped, so a per-line</text>
+  <text class="sub"  x="32"  y="280">check will never see it overspend. Overspend it and the handler runs into the next frame, the top-border switch lands late, and the border shuts.</text>
+</svg>

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pygments-m68k"
+version = "0.1.0"
+description = "Pygments lexer for Motorola 68000 assembly, with Lockstep's ;@ directives"
+requires-python = ">=3.10"
+dependencies = ["Pygments>=2.14"]
+
+[project.entry-points."pygments.lexers"]
+m68k = "pygments_m68k:M68kLexer"
+
+[tool.setuptools]
+packages = ["pygments_m68k"]

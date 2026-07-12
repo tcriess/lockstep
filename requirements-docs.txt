@@ -1,0 +1,11 @@
+# Everything needed to build the documentation site (mkdocs.yml).
+#   pip install -r requirements-docs.txt
+#   mkdocs serve          # live preview on http://127.0.0.1:8000
+#   mkdocs build --strict # what CI runs
+mkdocs-material>=9.5
+mkdocs-rss-plugin>=1.12
+
+# The Motorola 68000 Pygments lexer. Pygments ships GAS/NASM/ca65 but nothing for the 68k, so the
+# ```asm blocks in the devlog would otherwise be highlighted as GNU assembler. This also gives
+# Lockstep's `;@` directives their own token. Local package, versioned with the repo.
+./tools/pygments-m68k
