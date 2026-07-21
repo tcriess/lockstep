@@ -87,6 +87,31 @@ class SyncConfig:
     fine: str = "aurora"
     coarse: str = "none"
     baseline: bool = False
+    base_aware: bool = False
+    dance_gap: int = 8
+    """nops between the two 60/50 Hz sync-dance eors. The dance rides on the VBL-entry pause, so
+    VBL-entry jitter (= the remaining cycles of whatever main-loop instruction the interrupt cut
+    into) shifts BOTH eors. The GLUE constraints (Hatari video.c, matching real hardware):
+      - the 60 Hz pulse must cover the top-border check at cycle 500 of the pre-display line;
+      - on the STE, the 50 Hz restore must NOT land in cycles (36,56] of the first fetch line —
+        the GLUE's 60 Hz fetch preload has already started (cycle 36 vs 40 at 50 Hz), so a restore
+        there IS the left+2 trick: that line fetches 2 extra words and every following line of the
+        frame is sheared 8 bytes (one scrambled frame per late VBL entry; the STF thresholds
+        differ, which is why an ST never shows it).
+    With gap g the safe window for the FIRST eor's effect is [480-4g, min(500, 528-4g)] — 8 nops
+    give [448,496], only 48 wide minus jitter. Demos whose main loop runs long instructions
+    (movem copies) should widen the dance (e.g. gap 12 = window [432,480]) and lower `pause` to
+    re-centre (each pause count = 16 cycles). Default 8 keeps every existing build byte-identical."""
+    _BA_SPACER: int = 6   # base_aware post-poll spacer in words (4c each); 6 calibrated so __lock
+                          # lands at the original beam position (verified: base 0..64 all clean)
+    """STE hardware-hscroll mode (opt-in; default False keeps the wakestate-certified ST path
+    byte-for-byte). The `$8209` beam-lock reads the video-address-counter LOW byte, which is
+    `(video_base + bytes_fetched) & 0xff` — so a non-zero base low byte (i.e. any sub-256-byte
+    horizontal scroll) shifts the lock and mistimes the borders (shear / black). When True, the
+    poll subtracts the current base low byte (`$ff820d`) so the lock keys off `bytes_fetched`
+    alone — base-independent, letting you move the video base for hardware hscroll. Only sound on
+    the STE (no wakestate lottery); do NOT pair with the ST wakestate use-case. `coarse='none'`
+    only."""
 
     @property
     def needs_hbl_handler(self) -> bool:
@@ -144,7 +169,7 @@ class SyncConfig:
 
         return f"""\
 {base}{fill}    eor.b   #2,$ffff820a        ; 60/50 Hz sync-toggle dance (aurora.s:736-743)
-    rept 8
+    rept {self.dance_gap}
     nop
     endr
     eor.b   #2,$ffff820a        ; back to 50 Hz
@@ -162,16 +187,31 @@ class SyncConfig:
             fineinit = "    moveq   #0,d0\n    moveq   #16,d1\n"
         else:
             raise ValueError(f"unknown fine-sync style {self.fine!r}")
+        # STE hw-scroll (base_aware): make the beam-lock base-independent WITHOUT changing the
+        # poll-loop period (so the Aurora fine-sync stays calibrated). The poll loops on
+        # `cmp.b (a0),d5` (counter == base low) — 2 instructions, same period as the original
+        # `move.b (a0),d0 / beq` — then RE-CAPTURES the phase after the loop (move.b/sub.b). The
+        # two recapture instructions (12c) are offset by shrinking the post-poll spacer from
+        # 20c to `_BA_SPACER`*4c, so __lock lands at the original cycle.
+        if self.base_aware:
+            poll = (f"    move.b  $ffff820d,d5        ; d5 = video base low byte\n"
+                    f"{fineinit}    moveq   #2,d3\n    moveq   #0,d4\n"
+                    ".wait:\n"
+                    "    cmp.b   (a0),d5             ; base-aware: loop while counter == base low\n"
+                    "    beq.s   .wait\n"
+                    "    move.b  (a0),d0             ; recapture counter (loop period == original)\n"
+                    "    sub.b   d5,d0               ; d0 = fetched phase (base-independent)\n"
+                    f"    dcb.w   {self._BA_SPACER},$4e71             ; spacer (20c - 12c recapture)\n")
+        else:
+            poll = (f"{fineinit}    moveq   #2,d3\n    moveq   #0,d4\n"
+                    ".wait:\n"
+                    "    move.b  (a0),d0\n"
+                    "    beq.s   .wait               ; wait for video low byte != 0\n"
+                    "    dcb.w   5,$4e71             ; 20c spacer (aurora.s:760)\n")
         return f"""\
     move.w  #$8209,a0           ; video address low byte (MMU counter)
     lea     $ffff8260,a1        ; a1 = resolution reg (left-border switch)
-{fineinit}    moveq   #2,d3
-    moveq   #0,d4
-.wait:
-    move.b  (a0),d0
-    beq.s   .wait               ; wait for video low byte != 0
-    dcb.w   5,$4e71             ; 20c spacer (aurora.s:760)
-{finecode}__lock:                             ; <- beam probe: SYNC LOCKED here (zero bytes)
+{poll}{finecode}__lock:                             ; <- beam probe: SYNC LOCKED here (zero bytes)
     dcb.w   5,$4e71             ; 20c spacer (aurora.s:771)
     move.w  #$820a,a0           ; a0 = sync-mode reg (right-border switch)
 """

@@ -243,12 +243,23 @@ def emit_program(frame: str, *, setup: str = "", extra: str = "", exit_on_key: b
                            frame=_indent(frame), wait=_indent(wait), extra=extra)
 
 
-def build_tos(src: str, out_path: str) -> str:
-    """Assemble demo source to a `.TOS` at out_path (returns the path). Raises on vasm error."""
+def build_tos(src: str, out_path: str, *, optimize: bool = False) -> str:
+    """Assemble demo source to a `.TOS` at out_path (returns the path). Raises on vasm error.
+
+    `optimize=False` (default) assembles with `-no-opt` so the emitted bytes cost exactly what the
+    cycle model says — the invariant every model-pegged demo relies on. `optimize=True` lets the
+    vasm optimiser run (short-absolute for `$ffff8xxx` hardware regs, short branches, etc.). That is
+    NOT for model-pegged code: use it only for a demo that was authored/tuned under the optimiser
+    and whose beam-critical timing is a *fixed* pause (not `;@budget`-sized) — one shipped STE
+    intro is the known case. There, `-no-opt` widened the top-border bust `eor.b #2,$ffff820a` from abs.W (16c) to
+    abs.L (20c); the fixed pause did not recompensate, so the bust landed 4c late and the STE (whose
+    border tolerance is tighter than the STF's) dropped the top/bottom borders. `optimize=True`
+    restores the 16c form and the intro runs on BOTH ST (all wakestates) and STE again."""
     work = tempfile.mkdtemp(prefix="lockstep_prog_")
     s_path = os.path.join(work, "demo.s")
     open(s_path, "w").write(src)
-    r = subprocess.run([VASM, "-Ftos", "-no-opt", "-m68000", "-no-fpu", "-o", out_path, s_path],
+    flags = ["-Ftos", "-m68000", "-no-fpu"] if optimize else ["-Ftos", "-no-opt", "-m68000", "-no-fpu"]
+    r = subprocess.run([VASM, *flags, "-o", out_path, s_path],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise HatariError(f"vasm failed:\n{r.stdout}\n{r.stderr}")
