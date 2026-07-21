@@ -190,6 +190,11 @@ def nominal_cost(line: AsmLine) -> Cost:
         return _add_sub(m, src, dst, sz, line)
     if m in ("adda", "suba"):
         return _adda_suba(src, sz)
+    if m in ("addx", "subx"):
+        # register form Dy,Dx: 4c b/w, 8c long; memory form -(Ay),-(Ax): 18c b/w, 30c long
+        if src == Mode.DREG and dst == Mode.DREG:
+            return _fixed(8 if sz == "l" else 4)
+        return _fixed(30 if sz == "l" else 18, "ADDX/SUBX -(Ay),-(Ax)", Confidence.LOW)
     if m in ("addq", "subq"):
         return _addq_subq(src, dst, sz)
     if m in ("addi", "subi"):
