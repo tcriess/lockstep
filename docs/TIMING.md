@@ -432,34 +432,32 @@ odd/even addresses; accessing the "wrong" half can have its own cost — check t
 
 ---
 
-## 6. Blitter bus stealing (STE / Mega ST)
-
-**[HW + HATARI-from-memory — confirm in `src/blitter.c`]**
+## 6. Blitter bus stealing (STE / Mega ST)  `[VERIFIED: blitter.c + STE oracle calibration]`
 
 The BLiTTER is a **second bus master**, present on **STE and Mega ST** but **NOT on the
-plain STF** (Aurora's target — DESIGN.md §1.3.4 / §1.4 note this is a later, machine-
-profile-gated phase). When active it contends with the CPU for the bus.
+plain STF**. When active it contends with the CPU for the bus — deterministically, on the
+same 4-cycle grid as everything else (video fetch included: the shifter DMA owns its half
+of the grid whether the other master is the CPU or the blitter).
 
-Two operating modes (hardware) you'll see reflected in `src/blitter.c`:
+- **Bus accesses cost 4c each.** A source-read + dest-read + write op is 12c/word; a
+  write-only op (OP=0/$F with full endmasks) is 4c/word; a copy (no dest read) 8c/word.
+- **HOG mode:** the CPU can still run ~4c after the start write; then arbitration takes
+  **4c** (STE; 8c MegaSTE), the blitter owns the bus until done, and handback costs **4c**.
+  Net CPU stall for a small blit: **`4·accesses + 8` cycles** — calibrated to the exact
+  cycle on the STE oracle (a 64-access blit inside a beam-locked overscan schedule renders
+  only with a declared stall of 264c; ±4c collapses the frame).
+- **Non-HOG mode:** the blitter takes the bus for **64 accesses, then yields 64 cycles to
+  the CPU**, alternating (a hardware bug occasionally makes it 63). Keep in-schedule blit
+  commands **≤ 64 accesses** and HOG'd, and the alternation never enters the model.
+- CPU *internal* cycles (div/mul tails) can overlap a blit; whether an instruction's bus
+  accesses interleave depends on its read/write/prefetch order (blitter.c:47-57). For
+  cycle-exact scheduling, don't lean on this — the `;@stall` accounting assumes the CPU
+  is parked (its next access simply waits).
 
-- **Bus-hog / "blit now" mode:** the blitter grabs the bus for the whole blit; the CPU is
-  effectively stalled. Cost ≈ the blit's own word/line count, CPU gets nothing meanwhile.
-- **Shared / "blit on HOG=0" mode:** the blitter takes the bus in bursts (a fixed number
-  of bus cycles), then yields to the CPU for a window, alternating — so CPU code runs
-  *slower but not stopped* during a blit.
-
-What to extract from **`src/blitter.c`** **[UNVERIFIED — pointers]**:
-
-- `Blitter_*` functions; look for the **cycle cost per word and per line**, the
-  source/destination read+write bus accesses per word, and the **HOG / shared arbitration
-  burst sizes** (how many bus cycles the blitter holds vs. yields).
-- How the cost is charged to the CPU timeline — whether via `M68000_WaitState`, via the
-  `cycInt`/`cycles` machinery, or by advancing the main cycle counter directly.
-- Per-machine gating: confirm the blitter is only wired up for `MACHINE_STE` /
-  `MACHINE_MEGA_ST` (so your STF default profile correctly has **zero** blitter cost).
-
-This is explicitly a **later phase** in DESIGN.md (machine profile, post-STF). For the STF
-default profile it contributes nothing.
+The model consumes this via the **`;@stall N`** annotation (see TUTORIAL §1): a declared,
+4-aligned, phase-preserving stall on the line that starts the blit — which is what lets
+the packer schedule blits inside the raster (HOWTO_OVERSCAN §10). Machine gating stands:
+the STF profile has zero blitter cost.
 
 ---
 

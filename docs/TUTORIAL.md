@@ -59,6 +59,25 @@ The header tells you the cycle model and machine profile.
 > Pass `--round4` for the phase-blind round-to-4 estimate; use `measure` (§4) for the
 > ground truth that also captures display contention and IO wait states.
 
+### `;@stall N` — declared bus stalls (the blitter as code)
+
+Some cycles the CPU spends are not instructions: start a HOG-mode blit and the CPU is
+halted while the blitter owns the bus — a **deterministic** `4·accesses + 8` cycles for a
+small blit (4c arbitration in, 4c handback; ≤ 64 bus accesses so the non-HOG alternation
+never enters). The model can't infer that from the start write, so you declare it:
+
+```
+    move.w  #16,$ffff8a38      ; ycount: arm 16 rows
+    move.b  #$c0,$ffff8a3c     ; busy+HOG -> blit runs, CPU halted
+    ;@stall 264                 ; 64 accesses x 4c + 8c, on the model's books
+```
+
+The line assembles as a comment and costs exactly `N` (4-aligned, phase-preserving)
+everywhere the model reads code — `annotate`, budgets, and the scheduler's work items,
+which is the point: a blit command becomes a constant-cost block the packer can place
+between border pegs (HOWTO_OVERSCAN §10). The number is yours to get right; the oracle
+(§4) is the check, and the failure mode is loud — a wrong stall shifts every peg after it.
+
 ---
 
 ## 2. `build` — turn intent into exact filler
