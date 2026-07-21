@@ -65,9 +65,21 @@ class LineCost:
         return self.kind in ("instr", "filler")
 
 
+_STALL = re.compile(r";@stall\s+(\d+)\b")
+
+
 def cost_of_line(raw: str, lineno: int, engine: CycleEngine,
                  phase: int = 0) -> tuple[LineCost, int]:
     """Phase-aware cost of one source line. Returns (LineCost, new_bus_phase)."""
+    if (m := _STALL.search(raw)):
+        # ;@stall N — the CPU is bus-stalled N extra cycles here (a started blitter owns the
+        # bus; deterministic on the 4-cycle grid, so it costs like filler). The author owns
+        # the number — the Hatari oracle is the check. Assembles as a plain comment.
+        n = int(m.group(1))
+        if n % 4 != 0:
+            raise ValueError(f"line {lineno}: ;@stall {n} — stalls must be 4-cycle aligned")
+        line = parse_line(raw)
+        return LineCost(line, lineno, n, n, "filler", f"declared bus stall ({n}c)"), phase
     line = parse_line(raw)
 
     if line.mnemonic == "dcb":

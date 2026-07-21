@@ -422,6 +422,34 @@ Two remedies, both in the toolkit:
   between frames and can be caught mid-`movem` (jitter spikes ~20+ cycles, beyond what any loop
   choice fixes).
 
+## 10. The blitter inside the raster (`;@stall`)
+
+The blitter is a second bus master, so a blit running while the beam-raced schedule executes
+steals the CPU's bus slots — *unaccounted*, that shreds the frame. But the stealing is
+**deterministic on the same 4-cycle grid as everything else** (see arnaud-carre's 4KTribute
+write-up), which turns a blit into just another constant-cost work item:
+
+- Issue **small HOG-mode blits** (≤ 64 bus accesses, so the 64/64 non-HOG alternation never
+  enters the picture). The CPU is halted for exactly `4·accesses + 8` cycles (4c arbitration in,
+  4c handback) — during display fetch too; the video DMA already owns its half of the grid.
+- Configure every blitter register *outside* the schedule (setup / the vblank tail); the
+  in-raster work item is just `ycount` + `start`:
+
+```
+    move.w  #16,$ffff8a38      ; ycount: arm 16 rows (x 4-word lines = 64 accesses)
+    move.b  #$c0,$ffff8a3c     ; busy+HOG: blit runs, CPU halted
+    ;@stall 264                 ; 64 accesses x 4c + 8c — declared, so the packer accounts it
+```
+
+`;@stall N` is a cost-model annotation (assembles as a comment): the line costs `N` cycles of
+declared bus stall, 4-aligned, phase-preserving. It works anywhere the cycle model reads code —
+band work items, `pre`/`post` budgets. The author owns the number and the Hatari oracle is the
+check; the failure mode of a wrong stall is unmissable (every peg after it drifts — the whole
+frame collapses, verified ±4c around the true value).
+
+One `;@stall` item per gap, 260 lines per frame: ~80k cycles of in-raster blitter throughput,
+against ~9k in the vblank tail. This is how a game grows its sprite counts.
+
 ## Where to look next
 
 - `DESIGN.md` — the full design: the cycle model (§1), the directive layer (§2), the Hatari oracle

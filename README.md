@@ -67,6 +67,10 @@ changes.
   fixed VBL-entry latency, so the pre-lock top-border dance can't drift with the interrupted
   instruction (the spin idle's 0–8c entry jitter shreds STE frames at unlucky handler lengths).
   See `docs/HOWTO_OVERSCAN.md` §9.
+- **The blitter inside the raster.** A small HOG blit stalls the CPU a deterministic
+  `4·accesses + 8` cycles — declare it with `;@stall N` and the packer places blits between the
+  border pegs like any work item (~80k cycles/frame of in-raster blit throughput under full
+  overscan, verified on the STE). See `docs/HOWTO_OVERSCAN.md` §10.
 - **A frame budget.** The per-line check can't see the post-display tail; this one can, and fails the
   build before the emulator is launched.
 - **An oracle.** Every guarantee ends in a headless, cycle-exact Hatari run. "The borders opened" is a
