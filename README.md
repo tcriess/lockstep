@@ -59,6 +59,14 @@ changes.
 - **A packer.** Declare pegs and work; get an unrolled routine where every scanline is exactly 512c.
 - **An overscan frame.** `OverscanFrame` opens **all four borders on all four wakestates** on a plain
   STF, in pure lock-once full-sync — no HBL, no `stop`.
+- **STE hardware scroll.** `SyncConfig(base_aware=True)` — an opt-in, STE-only beam-lock that stays
+  put when you move the video base, so you can hardware-scroll a wide playfield under full overscan
+  (the stock lock reads `$8209`, which the base low byte shifts). Pixel-smooth with the no-prefetch
+  `$ff8264` fine scroll (byte write, ceil-rounded base). See `docs/HOWTO_OVERSCAN.md` §8.
+- **A zero-jitter idle.** `emit_program(..., idle="stop")` parks the main program in `stop #$2300`:
+  fixed VBL-entry latency, so the pre-lock top-border dance can't drift with the interrupted
+  instruction (the spin idle's 0–8c entry jitter shreds STE frames at unlucky handler lengths).
+  See `docs/HOWTO_OVERSCAN.md` §9.
 - **A frame budget.** The per-line check can't see the post-display tail; this one can, and fails the
   build before the emulator is launched.
 - **An oracle.** Every guarantee ends in a headless, cycle-exact Hatari run. "The borders opened" is a

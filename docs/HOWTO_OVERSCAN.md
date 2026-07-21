@@ -301,6 +301,127 @@ tear — and let the machine, not your eye, tell you it holds.
 
 ---
 
+## 8. STE hardware horizontal scroll (the `base_aware` lock)
+
+On the STE you can scroll a wide playfield for free by moving the video base (`$ff8201/03/0d`)
+plus the fine-scroll nibble (`$ff8265`) — no CPU/blitter copy. But there is a catch that is
+invisible until you try it, and it lives in the beam-lock itself.
+
+The standard sync locks on the **video address counter low byte** (`$ff8209`):
+
+```
+    move.w  #$8209,a0          ; a0 sign-extends to $ffff8209
+.wait:
+    move.b  (a0),d0
+    beq.s   .wait              ; lock the instant the counter leaves 0
+```
+
+That counter is `(video_base + bytes_fetched) & 0xff`. The moment it leaves 0 is the lock's beam
+reference — so it silently **assumes the base low byte is 0**. Give the base a non-zero low byte
+(i.e. scroll coarse by anything that is not a whole 256-byte step) and the zero-crossing moves,
+the lock lands on the wrong beam cycle, and the borders mistime — you get a per-line shear, or
+for some offsets the borders fail to open at all (a black box). The failure is base-value
+dependent and does not look like a scroll bug; it looks like the overscan broke.
+
+`SyncConfig(base_aware=True)` fixes it. It reads the current base low byte from `$ff820d` and
+keys the lock off `fetched` alone (`cmp.b (a0),d5` against the base low byte, same 2-instruction
+loop period as the original so the Aurora fine-sync stays calibrated), then recaptures the phase
+after the loop. Verified: static base offsets `0..248` all render clean, and a live base-move
+scroll stays clean, all four borders open.
+
+```python
+from lockstep.skeleton import OverscanFrame, SyncConfig
+
+frame = OverscanFrame(sync=SyncConfig(base_aware=True))   # STE hardware-hscroll lock
+# ... in the tail, move the base each frame; write $ff820d LAST (writing $8201/$8203
+#     forces the STE base-low byte to 0, so a low-first order is clobbered):
+#         move.b d_high,$ffff8201 / move.b d_mid,$ffff8203 / move.b d_low,$ffff820d
+```
+
+**`base_aware` is STE-only and opt-in** (default `False` keeps the wakestate-certified ST path
+byte-for-byte). It assumes the STE's deterministic video settle — do **not** pair it with the ST
+wakestate use-case, and it does not need the four-wakestate certification (there is no wakestate
+lottery on the STE).
+
+### Fine (sub-chunk) scroll: use `$ff8264`, not `$ff8265`
+
+For pixel-smooth scroll you want the STE fine-scroll offset (0–15 px) on top of the coarse
+base move. **The documented register `$ff8265` does not work under overscan:** writing a non-zero
+`$8265` makes the shifter fetch an extra 16-px group per line, which shifts its line timing so
+the resolution/sync border-open toggles (cycles `0/376/444`) miss the GLUE's border-removal
+window and the left/right (and bottom) borders **close** — you drop from `H_DE 4<->512` back to a
+normal `H_DE 56<->376`. (Watch it with `hatari --trace video_border_h,video_res`.) No `$820f`
+line-offset or sync compensation recovers it, because the extra fetch is the whole problem.
+
+The STE has an **undocumented twin at `$ff8264`** — "HSCROLL, no prefetch". It sets the same
+0–15 px offset **without** the extra fetch, so the shifter timing doesn't move and the borders
+stay open. Fine-scroll to `$8264` and the four-border frame survives; no `$820f` compensation is
+needed either (there is no extra fetch to compensate for). The trade is that the right-hand
+16-px group isn't pre-fetched — fine on a wide overscan playfield you have content there anyway.
+
+```
+    ; scroll position in pixels in d0 — the whole per-frame scroll, in the VBL tail:
+    move.w  d0,d2
+    and.w   #15,d2
+    move.b  d2,$ffff8264       ; FINE: 0..15 px, no-prefetch register (BYTE write — see below)
+    moveq   #0,d1
+    move.w  d0,d1
+    add.w   #15,d1
+    lsr.w   #4,d1              ; COARSE: CEIL(d0/16) chunks — rounded UP, see below
+    lsl.w   #3,d1              ; * 8 bytes/chunk -> video base, low byte LAST (base_aware sync)
+```
+
+Two rules that cost a day each if you learn them the hard way:
+
+- **Byte write, not word.** `move.w` to `$ffff8264` also writes `$8265` (= 0), and the `$8265`
+  half wins: the scroll count is zeroed every frame and the fine scroll silently does nothing —
+  the image steps in 16-px chunks and looks like the fine write "isn't working".
+- **Round the coarse base UP (`ceil(px/16)` chunks), not down.** The no-prefetch register has a
+  discontinuity at zero: with `$8264` **non-zero** the shifter fetches the first 16-px group
+  *during* display, so the line starts **16 px late**; with `$8264 = 0` it starts on time. Pair a
+  floor-rounded base with it and every fine wrap produces a +16/−16 px hiccup pair (it reads as
+  "fine and coarse land in different frames" — it isn't; the register pairing is fine). One extra
+  chunk of base exactly when fine > 0 — which is just rounding the chunk index up — cancels the
+  late start: `fine=0 → 16·c` on time, `fine=k → 16·(c+1)+k−16 = 16·c+k` late — continuous.
+
+Where in the frame the `$8264` write goes does NOT matter (A/B-verified): written in the tail it
+applies from the next frame, exactly like the tail-latched base. This is how the STE
+side-scroller built on this toolkit does full-overscan pixel-smooth scroll — verified over 41
+consecutive frames: exactly +2 px each, across every chunk boundary and the pattern wrap, all
+four borders open.
+
+## 9. The zero-jitter idle (`idle="stop"`)
+
+The VBL interrupts whatever the main program is doing, and the 68000 finishes the current
+instruction first — so the **VBL entry cycle jitters** by the remaining cycles of that
+instruction. The default idle is a 10-cycle spin loop (`bra.s __wait`), which looks harmless but
+isn't: the entry phase drifts frame-to-frame by (frame+handler length mod 10), visiting up to 5
+distinct phases in a cycle. Everything *after* the beam lock is immune (the lock eats the
+jitter), but the **top-border sync dance rides the fixed VBL-entry pause, before the lock** — it
+shifts 1:1 with entry jitter. On the STE, a 50 Hz restore drifted into the GLUE's left+2 window
+(cycles 36..56 of a fetch line) shreds the whole frame: borders shut, every line shifted 8 bytes
+diagonally.
+
+The insidious part is the symptom pattern: with a 10c loop the orbit has period ≤ 5, so you see
+**one shredded frame every N ≤ 5 frames — or none at all**, depending on the *total handler
+length mod 10*. Add two instructions to your tail and a perfectly clean demo starts glitching
+(or vice versa). It looks exactly like whatever you just added broke the video — in the field it
+masqueraded as "writing the scroll registers closes the borders" until a nop-padded tail with
+**no** register writes shredded on the exact same frames.
+
+Two remedies, both in the toolkit:
+
+- **`emit_program(..., idle="stop")`** (also via `OverscanFrame.build(..., idle="stop")`): idle
+  in `stop #$2300` instead of spinning. The 68000 leaves the stopped state with a **fixed**
+  interrupt latency, so the VBL enters from the identical machine state every frame — zero entry
+  jitter by construction, whatever the handler length. Right for any demo whose main program has
+  nothing to do; a custom `main` gets the same guarantee by parking in `stop #$2300` before each
+  VBL. Default stays `"spin"` (all historical binaries byte-identical).
+- **`SyncConfig(dance_gap=...)`** (the SYNCFIX pattern): widen the dance's safe window so it
+  tolerates the jitter instead of eliminating it. Needed when the main program *does* real work
+  between frames and can be caught mid-`movem` (jitter spikes ~20+ cycles, beyond what any loop
+  choice fixes).
+
 ## Where to look next
 
 - `DESIGN.md` — the full design: the cycle model (§1), the directive layer (§2), the Hatari oracle

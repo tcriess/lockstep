@@ -142,6 +142,20 @@ _WAIT_FOREVER = """\
 __wait:
     bra.s   __wait               ; no key-exit: the VBL runs the demo forever"""
 
+# Zero-jitter idle. The spin idle above is a 10-cycle loop, so the VBL interrupts it at a phase
+# that drifts frame-to-frame by (frame+handler length mod 10): 0..8 cycles of VBL-ENTRY JITTER.
+# The top-border sync dance rides the fixed VBL-entry pause, so that jitter shifts it 1:1 — and
+# on the STE, a 50 Hz restore drifted into the GLUE's left+2 window (cycles 36..56 of a fetch
+# line) shreds the whole frame (a debugged shipped-intro incident). `stop` instead halts the CPU:
+# the 68000 leaves the stopped state with a FIXED interrupt latency, so the VBL enters from the
+# identical machine state every frame — zero entry jitter, by construction, regardless of how
+# long the handler (or any tail work) is. Requires supervisor mode (we are: Super(0) above) and
+# an SR that admits the level-4 VBL ($2300; the MFP is fully masked, nothing else fires).
+_WAIT_STOP = """\
+__wait:
+    stop    #$2300               ; zero-jitter idle: fixed-latency VBL entry (no dance drift)
+    bra.s   __wait"""
+
 
 # Reserve the work-buffer pool from GEMDOS, so it lives in REAL free RAM *above* the program
 # wherever it loaded — not at fixed absolute addresses that assume the program loaded low (an
@@ -204,7 +218,8 @@ __nomem:                         ; not enough RAM for the work-buffer pool: clea
 
 
 def emit_program(frame: str, *, setup: str = "", extra: str = "", exit_on_key: bool = True,
-                 mask: bool = True, main: str = "", pool_bytes: int = 0, pool_origin: int = 0) -> str:
+                 mask: bool = True, main: str = "", pool_bytes: int = 0, pool_origin: int = 0,
+                 idle: str = "spin") -> str:
     """Return the assembly source of a standalone full-sync demo (.TOS), built on Aurora's
     bootstrap. `setup` runs ONCE in the main program (a3 = the live, aligned screen base);
     `frame` is one VBL, installed as the $70 handler. `frame` MUST be self-contained in
@@ -226,16 +241,28 @@ def emit_program(frame: str, *, setup: str = "", extra: str = "", exit_on_key: b
     the VBL handler keeps animating; the VBL preserves the main program's registers across its
     interrupts. Overrides exit_on_key. Label your own loops; `__wait`/`__exit` are reserved.
 
+    `idle` — the no-main, no-key idle style. "spin" (default, historical: all existing binaries
+    byte-identical) busy-waits in a 10-cycle loop, which leaks 0..8 cycles of VBL-entry jitter
+    into the pre-lock top-border dance — on the STE that can shred single frames every few frames
+    depending on handler length mod 10 (see _WAIT_STOP). "stop" halts the CPU between frames:
+    fixed interrupt latency, zero entry jitter, the right choice for any new full-sync demo whose
+    main program has nothing to do. (With `main` or `exit_on_key` this knob is ignored — but a
+    custom `main` can adopt the same discipline: end its per-frame work in `stop #$2300`.)
+
     `pool_bytes` — if >0, reserve that many bytes of work-buffer memory from GEMDOS (Mshrink +
     Malloc) before `setup` runs, and expose it as `__membase` (the pool base) and `__memoff`
     (= __membase - `pool_origin`). The intro must address its buffers RELATIVE to the pool: keep
     the absolute address immediates but add `__memoff` to each (and to frame addresses before
     writing the video base). This makes the buffers land in real free RAM above the program no
     matter where it loaded (desktop OR auto); out of memory shows a red screen instead of black."""
+    if idle not in ("spin", "stop"):
+        raise ValueError(f"unknown idle style {idle!r} (want 'spin' or 'stop')")
     if main:
         wait = main
+    elif exit_on_key:
+        wait = _WAIT_KEY                # blocks in GEMDOS: entry jitter is the ROM's, not ours
     else:
-        wait = _WAIT_KEY if exit_on_key else _WAIT_FOREVER
+        wait = _WAIT_STOP if idle == "stop" else _WAIT_FOREVER
     mask_asm = "    or.w    #$0700,sr" if mask else ""
     pool = _indent(_pool_asm(pool_bytes, pool_origin)) if pool_bytes else ""
     nomem = _NOMEM if pool_bytes else ""
