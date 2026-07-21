@@ -222,7 +222,7 @@ def nominal_cost(line: AsmLine) -> Cost:
         return _fixed(14 + ea_time(src, "b"), conf=Confidence.LOW)
 
     if m in ("asl", "asr", "lsl", "lsr", "rol", "ror", "roxl", "roxr"):
-        return _shift(src, dst, sz)
+        return _shift(src, dst, sz, line)
 
     if m in ("btst", "bchg", "bclr", "bset"):
         return _bitop(m, src, dst)
@@ -382,13 +382,25 @@ def _unary_rmw(src, sz) -> Cost:
     return _fixed((12 if sz == "l" else 8) + ea_time(src, sz), conf=Confidence.LOW)
 
 
-def _shift(src, dst, sz) -> Cost:
+def _shift(src, dst, sz, line=None) -> Cost:
     # memory shift (by 1): single operand
     if dst is None:
         return _fixed(8 + ea_time(src, sz), "memory shift by 1", Confidence.LOW)
     if src == Mode.IMM:
-        return Cost(6 if sz != "l" else 8, 6 if sz != "l" else 8, Confidence.VARIABLE,
-                    "shift #n,Dn = (6|8)+2n; n is the immediate (resolve from operand)")
+        base = 6 if sz != "l" else 8
+        # the count is right there in the immediate: resolve it (1..8; #0 encodes 8)
+        if line is not None and line.operands:
+            tok = line.operands[0].lstrip("#")
+            try:
+                n = int(tok[1:], 16) if tok.startswith("$") else int(tok, 0)
+            except ValueError:
+                n = None
+            if n is not None and not 1 <= n <= 8:
+                n = None            # 1..8 is the hardware range (#8 encodes as 0)
+            if n is not None:
+                return _fixed(base + 2 * n, f"shift #{n},Dn = {base}+2*{n}")
+        return Cost(base + 2, base + 16, Confidence.VARIABLE,
+                    f"shift #n,Dn = {base}+2n (immediate unresolved)")
     base = 6 if sz != "l" else 8
     return Cost(base, base + 2 * 63, Confidence.VARIABLE,
                 f"shift Dn,Dn = {base}+2n, n=(count & 63)")
