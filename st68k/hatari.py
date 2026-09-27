@@ -31,9 +31,9 @@ CYCLES_PER_FRAME = 160256           # PAL; only matters if a chunk spans a VBL
 
 _TOS_CANDIDATES = [
     os.environ.get("STCYC_TOS", ""),
-    "/home/spanz/hatari/roms/etos256de.img",
-    "/home/spanz/hatari/roms/TOS104GE.IMG",
-    "/home/spanz/hatari/roms/tos206de.img",
+    os.path.expanduser("~/hatari/roms/etos256de.img"),
+    os.path.expanduser("~/hatari/roms/TOS104GE.IMG"),
+    os.path.expanduser("~/hatari/roms/tos206de.img"),
 ]
 
 _HARNESS = """\
