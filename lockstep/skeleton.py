@@ -88,6 +88,11 @@ class SyncConfig:
     coarse: str = "none"
     baseline: bool = False
     base_aware: bool = False
+    pause_extra: int = 0
+    """Cycles added to the VBL-entry pause on top of `16*pause+28` (a multiple of 4). `pause`
+    moves the top-border dance in 16c steps; this is the fine knob for centring the dance in
+    its window (probe it: shift until the border census fails on each side, then sit in the
+    middle). Costed into `pause_budget`, so a `pre` region is padded to the new total."""
     dance_gap: int = 8
     """nops between the two 60/50 Hz sync-dance eors. The dance rides on the VBL-entry pause, so
     VBL-entry jitter (= the remaining cycles of whatever main-loop instruction the interrupt cut
@@ -121,7 +126,9 @@ class SyncConfig:
     def pause_budget(self) -> int:
         """Exact cost of the VBL-entry pause loop, in cycles (16 per iteration + 28 of setup and
         fall-through). This is the window that `pre` work has to fit in — see `_prelude`."""
-        return 16 * self.pause + 28
+        if self.pause_extra % 4:
+            raise ValueError(f"pause_extra must be a multiple of 4 cycles (got {self.pause_extra})")
+        return 16 * self.pause + 28 + self.pause_extra
 
     def _prelude(self, pre: str = "") -> str:
         """The dead time between VBL entry and the beam sync — and, optionally, your work in it.
@@ -145,6 +152,8 @@ class SyncConfig:
         if not pre.strip():
             fill = (f"    move.w  #{self.pause},d0            ; [knob pause] VBL-entry -> toward "
                     f"display top\n.pause:\n    nop\n    dbra    d0,.pause\n")
+            if self.pause_extra:
+                fill += f"    dcb.w   {self.pause_extra // 4},$4e71             ; [knob pause_extra]\n"
         else:
             # Size the pause with the toolkit's own budget machinery rather than a linear cycle
             # sum. That matters: the pause is where the per-frame *logic* wants to live, and logic

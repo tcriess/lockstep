@@ -422,6 +422,11 @@ Two remedies, both in the toolkit:
   between frames and can be caught mid-`movem` (jitter spikes ~20+ cycles, beyond what any loop
   choice fixes).
 
+To *place* the dance, `pause` moves it in 16c steps and **`SyncConfig(pause_extra=N)`** (a multiple
+of 4) is the fine knob; both are costed into `pause_budget`, so a `pre` region is re-padded. Probe
+it: shift until a border census fails on each side, then sit in the middle. On the STE under
+Hatari, an STE game of ours measured islands only ±4c wide, 16c apart, so measure rather than assume.
+
 ## 10. The blitter inside the raster (`;@stall`)
 
 The blitter is a second bus master, so a blit running while the beam-raced schedule executes

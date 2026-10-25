@@ -77,7 +77,8 @@ def _prelude_cost(sync, *, beam_wait: int = DEFAULT_BEAM_WAIT, engine=None) -> i
     the `$8209` lock spacers, the `dcb.w first_line` fill) plus the real pause-loop cost and a
     bounded beam-wait. block_cycles counts the pause dbra as a single pass; swap in the loop."""
     straight = block_cycles(sync.asm(), engine)[1]
-    return straight - _PAUSE_ONE_PASS + _pause_loop_cost(sync.pause) + beam_wait
+    return (straight - _PAUSE_ONE_PASS + _pause_loop_cost(sync.pause)
+            + getattr(sync, "pause_extra", 0) + beam_wait)
 
 
 @dataclass
