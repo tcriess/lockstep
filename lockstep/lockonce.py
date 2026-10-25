@@ -112,7 +112,8 @@ def _ikbd(cmds: list[int], tag: str) -> str:
 
 
 IKBD_QUIET = [0x12, 0x1a]       # mouse off, joystick off: only keys reach the ACIA
-IKBD_RESTORE = [0x08, 0x14]     # relative mouse, joystick event reporting (TOS defaults)
+IKBD_RESTORE = [0x14, 0x08]     # joystick event reporting, THEN relative mouse: a joystick mode
+                                #   takes port 0 from the mouse, a mouse mode gives it back (TOS order)
 
 # Setup prefix: remember the main program's stack (the exit path returns to it), and, with the
 # exit test on, drain the keyboard ACIA until it has been quiet for ~0.25 s, so the release of the
