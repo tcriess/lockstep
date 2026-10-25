@@ -6,7 +6,7 @@ what an interrupt-driven demo plays with a VBL routine. Commands:
     $00..$0f, v          write v to YM register (the mixer, R7, keeps port bits 6/7 = output)
     $80, v               temp = v
     $81, r, inc, end     temp += inc, write temp to register r, once per frame, until temp == end
-    $82..$ff, n          wait: the next command runs n frames later (n = 0 ends the tune)
+    $82..$ff, n          wait n + 1 frames (n = 0 ends the tune)
 
 A frame-locked program cannot run a Dosound player: its cost depends on how many commands a frame
 holds. So the stream is played at build time (`frames`) into the writes of every frame, and
@@ -17,7 +17,9 @@ where K is the largest record. Straight-line code with computed jumps, so it is 
 `;@stall` carrying its exact cost (`Song.call`), which the budget machinery adds like any other
 instruction.
 
-`delay_extra=1` makes a wait of n last n + 1 frames, as some players count it.
+Waits: n lasts n + 1 frames. That is how dosound-tracker (https://dosound.alyx.pl/) writes them:
+one tracker step is 2 ticks of 20 ms, exported as `$ff,$01 ; DL 2`, and a wait of t ticks as
+`$ff,t-1`. `delay_extra=0` reads n as n frames instead.
 """
 
 from __future__ import annotations
@@ -58,7 +60,7 @@ def parse(path: str) -> bytes:
     return bytes(out)
 
 
-def frames(data: bytes, *, delay_extra: int = 0, max_frames: int = 50 * 60 * 30) -> list:
+def frames(data: bytes, *, delay_extra: int = 1, max_frames: int = 50 * 60 * 30) -> list:
     """Play the stream: the (register, value) writes of every frame, up to and including the
     frame of the end command."""
     out, i, temp, wait = [], 0, 0, 0
@@ -110,7 +112,7 @@ class Song:
     `init()` once before the first frame, `call()` once per frame in a budgeted region,
     `silence()` on exit. `cycles` is what `call()` costs."""
 
-    def __init__(self, data: bytes, *, delay_extra: int = 0, loop: bool = True,
+    def __init__(self, data: bytes, *, delay_extra: int = 1, loop: bool = True,
                  prefix: str = "__mus", k: int | None = None):
         fr = frames(data, delay_extra=delay_extra)
         self.n_frames = len(fr)

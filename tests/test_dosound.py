@@ -16,15 +16,17 @@ TUNE = bytes([0, 0x1c, 1, 1, 8, 12, 0x82, 2,
 
 
 def test_frames():
-    fr = frames(TUNE)
+    fr = frames(TUNE, delay_extra=0)
     assert fr == [[(0, 0x1c), (1, 1), (8, 12)], [],              # wait 2: the next frame is idle
                   [(8, 0), (9, 2)], [(9, 4)], [(9, 6)],          # sweep: one step per frame
                   [],                                            # its end closes the frame; wait 1
                   [(7, 0xff)]]                                   # R7: port bits forced to output
 
 
-def test_delay_extra():
-    assert frames(bytes([8, 1, 0x82, 1, 8, 2, 0x82, 0]), delay_extra=1) == [[(8, 1)], [], [(8, 2)]]
+def test_wait_default_is_tracker_dl():
+    # dosound-tracker: "dc.b $FF,$1 ; DL 2" = two frames per step
+    assert frames(bytes([8, 1, 0xff, 1, 8, 2, 0xff, 0])) == [[(8, 1)], [], [(8, 2)]]
+    assert frames(bytes([8, 1, 0xff, 1, 8, 2, 0xff, 0]), delay_extra=0) == [[(8, 1)], [(8, 2)]]
 
 
 def test_no_end():
