@@ -455,6 +455,54 @@ frame collapses, verified ±4c around the true value).
 One `;@stall` item per gap, 260 lines per frame: ~80k cycles of in-raster blitter throughput,
 against ~9k in the vblank tail. This is how a game grows its sprite counts.
 
+## 11. Lock once, then count (`LockOnceFrame`)
+
+Everything above runs a frame as a VBL handler that re-locks to the beam every frame. The other
+classic architecture syncs **once** and then counts every cycle for ever: no interrupts at all
+after the first VBL. `lockstep.lockonce.LockOnceFrame` is that mode, on the same bands:
+
+```python
+from lockstep.lockonce import LockOnceFrame
+
+frame = LockOnceFrame(main_lines=227, bot_lines=32, left_nops=1, cross=True)
+print(frame.tail_budget())          # 26564 cycles of free work per frame
+frame.build("DEMO.TOS", setup=my_setup, upper=my_bands, tail=my_tail)
+```
+
+The first VBL enters the usual prelude and lock (frame 1 is a VBL-mode frame); from `__band0`
+on, the program is one loop: bands, tail (padded), the top-border dance, a post region (band
+registers, exit test, `jmp __band0`), exactly 313 x 512 = 160256 cycles. `sr` stays `$2700` and
+the handler never returns.
+
+Placement is measured. In VBL mode `__band0` starts at frame cycle 17916 every frame, and the
+dance moves with the VBL-entry jitter: 17340..17348 on the STE, 17336..17344 on the ST (Hatari
+2.6.1). The loop puts the dance `DANCE_TO_BAND0` = 572 cycles before band 0, inside both.
+Measured over 1000 consecutive frames, `__band0` is at frame cycle 17916 on every one, ST and STE.
+Sweeping the dance in 4c steps on the STE, every placement from 544 to 596 cycles before band 0
+opens the borders (540 and 600 lose every frame), so the default has ~25c of margin either side.
+The example is certified on all four ST wakestates and on the STE.
+
+What changes for the author:
+
+- **The tail must be constant-cost**, exactly like `pre`: `;@balance` around branches, no
+  data-dependent instructions (`mulu`, `divu`, register shift counts). The build pads it and
+  refuses one that does not fit. A cycle off per frame would accumulate for ever.
+- **More room, simpler rules.** ~26.5k cycles per frame in one place, instead of an 8.6k tail
+  (unpadded, overrun = shredded frame) plus a 17k pause.
+- **The video base may move every frame.** There is no per-frame lock for a moving base to fool,
+  so STE hardware scroll works without `base_aware` (the problem §8 works around).
+- **No interrupt-driven code**: music is a constant-cost YM engine in the tail or the bands.
+- **No ACIA access in the loop**: the keyboard ACIA is E-clock synced, its cost varies frame to
+  frame. The exit test reads MFP GPIP bit 4 instead (the ACIA's interrupt line, low while a byte
+  waits; a fixed +4c MFP access): any key, mouse or joystick byte ends the program. Setup drains
+  the ACIA until it has been quiet for ~0.25 s, so the key that launched the program does not
+  end it. `exit_on_key=False` drops the test (`jmp __band0` only).
+- `pre` does not exist (no pause region); `post` runs in frame 1's post-lock window and again
+  every frame before band 0.
+
+Example: `examples/lockonce/lockonce.py` (the bordopen frame, colour 15 cycling in the tail).
+`LOCKONCE_D2B=<cycles>` rebuilds it with the dance elsewhere, to probe the tolerance window.
+
 ## Where to look next
 
 - `DESIGN.md` — the full design: the cycle model (§1), the directive layer (§2), the Hatari oracle

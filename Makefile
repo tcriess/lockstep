@@ -25,11 +25,12 @@ AURORA   := examples/aurora/aurora.tos
 DEMO     := examples/aurora/demo.tos
 BORDOPEN := examples/bordopen/bordopen.tos
 BORDWS   := examples/bordopen/bordws.tos
+LOCKONCE := examples/lockonce/lockonce.tos
 
-EXAMPLES   := $(AURORA) $(DEMO) $(BORDOPEN) $(BORDWS)
+EXAMPLES   := $(AURORA) $(DEMO) $(BORDOPEN) $(BORDWS) $(LOCKONCE)
 COMPRESSED := $(EXAMPLES:.tos=c.tos)
 
-.PHONY: all compressed clean aurora demo bordopen docs docs-deps docs-serve docs-figures
+.PHONY: all compressed clean aurora demo bordopen lockonce docs docs-deps docs-serve docs-figures
 all: $(EXAMPLES)
 compressed: $(COMPRESSED)
 
@@ -37,6 +38,7 @@ compressed: $(COMPRESSED)
 aurora:   $(AURORA)
 demo:     $(DEMO)
 bordopen: $(BORDOPEN) $(BORDWS)
+lockonce: $(LOCKONCE)
 
 # --- example build rules (the emitter writes the .TOS as a side effect of running it) ---
 # aurora.py rebuilds the demo from examples/aurora/orig/*.s: it re-derives every cycle count the
@@ -50,6 +52,10 @@ $(DEMO): examples/aurora/demo.py $(TOOLKIT)
 
 # bordopen.py emits BOTH bordopen.tos and bordws.tos in a single run (grouped target, GNU make >=4.3).
 $(BORDOPEN) $(BORDWS) &: examples/bordopen/bordopen.py $(TOOLKIT)
+	$(PYTHON) $<
+
+# lockonce.py reuses bordopen's screen setup.
+$(LOCKONCE): examples/lockonce/lockonce.py examples/bordopen/bordopen.py $(TOOLKIT)
 	$(PYTHON) $<
 
 # --- STrinkler-compressed, self-depacking executables (one per .TOS) ---

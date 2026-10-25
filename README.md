@@ -71,6 +71,10 @@ changes.
   `4·accesses + 8` cycles — declare it with `;@stall N` and the packer places blits between the
   border pegs like any work item (~80k cycles/frame of in-raster blit throughput under full
   overscan, verified on the STE). See `docs/HOWTO_OVERSCAN.md` §10.
+- **Lock once, then count.** `LockOnceFrame` syncs at the first VBL and then runs with every
+  interrupt masked: one loop of exactly 160256 cycles per frame, ~26.5k of them free for your
+  per-frame work, zero drift (measured over 1000 frames, ST and STE). See
+  `docs/HOWTO_OVERSCAN.md` §11.
 - **A frame budget.** The per-line check can't see the post-display tail; this one can, and fails the
   build before the emulator is launched.
 - **An oracle.** Every guarantee ends in a headless, cycle-exact Hatari run. "The borders opened" is a
