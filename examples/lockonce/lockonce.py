@@ -10,6 +10,7 @@ Any key ends it.
 LOCKONCE_D2B=<cycles> overrides the dance placement (probe the tolerance window with it).
 LOCKONCE_CHECK=1 builds the debug check in (red border and halt if a frame drifts);
 LOCKONCE_FRAME=<cycles> sets a wrong loop length on purpose, to see the check fire.
+LOCKONCE_MUSIC=<file> plays a Dosound stream (lockstep.dosound) in the tail.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "bordopen"))
 
 from bordopen import _setup  # noqa: E402  (the green screen, palette, video base)
+from lockstep.dosound import Song, parse  # noqa: E402
 from lockstep.lockonce import DANCE_TO_BAND0, FRAME_CYCLES, LockOnceFrame  # noqa: E402
 
 COUNTER = 0x1000
@@ -49,16 +51,21 @@ def extra() -> str:
 
 
 def build(out_path: str, *, dance_to_band0: int = DANCE_TO_BAND0, check: bool = False,
-          frame_cycles: int = FRAME_CYCLES) -> str:
+          frame_cycles: int = FRAME_CYCLES, music: str | None = None) -> str:
     frame = LockOnceFrame(main_lines=227, bot_lines=32, left_nops=1, cross=True,
                           dance_to_band0=dance_to_band0, check=check, frame_cycles=frame_cycles)
     print(f"tail budget: {frame.tail_budget()} cycles per frame")
-    return frame.build(out_path, setup=f"    clr.l   ${COUNTER:x}.w\n" + _setup(),
-                       tail=tail(), extra=extra())
+    song = Song(parse(music)) if music else None
+    return frame.build(out_path, setup=f"    clr.l   ${COUNTER:x}.w\n" + _setup()
+                       + (song.init() if song else ""),
+                       tail=tail() + (song.call() if song else ""),
+                       extra=extra() + (song.routine() + song.data() if song else ""),
+                       on_exit=song.silence() if song else "")
 
 
 if __name__ == "__main__":
     d2b = int(os.environ.get("LOCKONCE_D2B", str(DANCE_TO_BAND0)))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "lockonce.tos")
     print("built", build(out, dance_to_band0=d2b, check=os.environ.get("LOCKONCE_CHECK") == "1",
-                         frame_cycles=int(os.environ.get("LOCKONCE_FRAME", str(FRAME_CYCLES)))))
+                         frame_cycles=int(os.environ.get("LOCKONCE_FRAME", str(FRAME_CYCLES))),
+                         music=os.environ.get("LOCKONCE_MUSIC")))

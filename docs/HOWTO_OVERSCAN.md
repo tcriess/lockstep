@@ -514,6 +514,22 @@ What changes for the author:
   every frame before band 0.
 
 Example: `examples/lockonce/lockonce.py` (the bordopen frame, colour 15 cycling in the tail).
+
+**Music: `lockstep.dosound`.** A Dosound stream (XBIOS 32: register/value pairs, `$80`/`$81`
+sweeps, `$82..$ff,n` waits) is played at build time into the writes of every frame; `Song` packs
+the frames that write into records and emits a replay subroutine that costs the same every frame
+(n real and K - n dummy writes, K = the busiest frame). Its exact cost travels with the call as a
+`;@stall`, so it drops into any budgeted region:
+
+```python
+from lockstep.dosound import Song, parse
+song = Song(parse("tune.s"))                 # dc.b source or raw bytes; loops by default
+frame.build(..., setup=setup + song.init(), tail=tail + song.call(),
+            extra=extra + song.routine() + song.data(), on_exit=song.silence())
+```
+
+`LOCKONCE_MUSIC=<file>` builds the example with a tune; its YM writes, traced in Hatari, match the
+build-time player frame for frame over two loops.
 `LOCKONCE_D2B=<cycles>` rebuilds it with the dance elsewhere, to probe the tolerance window.
 
 ## Where to look next

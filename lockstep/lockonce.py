@@ -139,10 +139,11 @@ __lo_idle:
     bra.s   __lo_idle"""
 
 
-def _exit_code(ikbd: bool) -> str:
+def _exit_code(ikbd: bool, on_exit: str = "") -> str:
     return f"""\
 __lo_exit:                       ; leave the loop: back on main's stack, TOS's VBL, interrupts on
     move.l  __lo_sp,sp
+{on_exit.rstrip(chr(10)) + chr(10) if on_exit.strip() else ""}\
 {_ikbd(IKBD_RESTORE, "x") if ikbd else ""}\
     move.l  __oldvbl,$70.w
     move.w  #$2300,sr
@@ -268,9 +269,10 @@ class LockOnceFrame(OverscanFrame):
     def build(self, out_path: str, *, setup: str = "", extra: str = "",
               upper: WorkStream | None = None, lower: WorkStream | None = None,
               tail: str = "", pre: str | None = None, post: str | None = None,
-              exit_on_key: bool | None = None, **emit_kw) -> str:
+              exit_on_key: bool | None = None, on_exit: str = "", **emit_kw) -> str:
         """Assemble a standalone lock-once `.TOS`. `setup` runs once with interrupts on (MFP
-        masked, as in VBL mode); `extra` is appended after the program."""
+        masked, as in VBL mode); `extra` is appended after the program; `on_exit` runs (untimed)
+        when a key ends the loop, e.g. to silence the YM."""
         if exit_on_key is not None:
             self.exit_on_key = exit_on_key
         for k in ("main", "idle", "mask"):
@@ -280,6 +282,6 @@ class LockOnceFrame(OverscanFrame):
         ikbd = self.exit_on_key and self.ikbd_quiet
         prefix = (_SETUP_SP + (_ikbd(IKBD_QUIET, "q") if ikbd else "")
                   + (_SETUP_QUIET if self.exit_on_key else ""))
-        src = emit_program(body, setup=prefix + setup, extra=_exit_code(ikbd) + extra,
+        src = emit_program(body, setup=prefix + setup, extra=_exit_code(ikbd, on_exit) + extra,
                            main=_MAIN, mask=True, **emit_kw)
         return build_tos(src, out_path)
