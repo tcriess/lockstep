@@ -145,6 +145,16 @@ def _has_mem_operand(line: AsmLine) -> bool:
     return any(classify_operand(o) in MEMORY_MODES for o in line.operands)
 
 
+def _is_index_lea(line: AsmLine) -> bool:
+    """LEA/PEA with an indexed source, (d8,An,Xn) or (d8,PC,Xn). Nominally 12/20 (a multiple of 4)
+    but two 2-cycle internal steps sit between the bus reads ("n np n np"), so from an aligned
+    start each realigns: +4 at phase 0, the normal +2 at phase 2. Measured in Hatari: lea 16/14,
+    pea 24/22 at phase 0/2 (the model used to say 12 at phase 0)."""
+    if line.mnemonic not in ("lea", "pea") or not line.operands:
+        return False
+    return classify_operand(line.operands[0]) in (Mode.AINDEX, Mode.PCINDEX)
+
+
 def _is_odd_ea(line: AsmLine, nominal: int) -> bool:
     # nominal == 2 mod 4 with a data-memory operand -> indexed/predecrement misalignment
     if line.mnemonic in _CONTROL_FLOW:
@@ -163,6 +173,9 @@ class CycleEngine:
         nc = nominal_cost(line)
         odd_ea = _is_odd_ea(line, nc.min)
         smin, smax, new_phase = self.wm.apply(nc.min, nc.max, odd_ea, phase)
+        if phase == 0 and isinstance(self.wm, BusPhaseModel) and _is_index_lea(line):
+            smin += 4
+            smax += 4                   # still ends aligned: new_phase unchanged
         pmin, pmax, pnote = io_penalty(line)
         smin += pmin
         smax += pmax

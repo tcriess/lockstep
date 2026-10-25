@@ -190,7 +190,9 @@ def classify_operand(op: str) -> Mode:
     if "/" in s or re.fullmatch(r"[da][0-7]-[da]?[0-7]", low):
         return Mode.REGLIST  # d0-d7, d0-d3, and the d0-7 shorthand
 
-    # PC-relative
+    # PC-relative. Indexed first: old d(pc,xn) / (pc,xn), new (d,pc,xn)
+    if re.search(rf"\(pc,{_XREG}\)$", low) or re.fullmatch(rf"\({_DISP},pc,{_XREG}\)", low):
+        return Mode.PCINDEX
     if re.fullmatch(rf"\(?{_DISP},?pc\)", low) or re.search(r",pc\)$|\(pc\)$", low):
         if re.search(r",pc,", low) or re.search(rf"pc,{_XREG}\)$", low):
             return Mode.PCINDEX
@@ -204,9 +206,9 @@ def classify_operand(op: str) -> Mode:
     if re.fullmatch(rf"-\({_AREG}\)", low):
         return Mode.ADEC
     # indexed: old  d(an,xn)   new (d,an,xn)
-    if re.fullmatch(rf"{_DISP}\({_AREG},{_XREG}\)", low) or \
+    if re.fullmatch(rf"(?:{_DISP})?\({_AREG},{_XREG}\)", low) or \
        re.fullmatch(rf"\({_DISP},{_AREG},{_XREG}\)", low):
-        return Mode.AINDEX
+        return Mode.AINDEX                          # (an,xn) is d8 = 0
     # displacement: old d(an)   new (d,an)
     if re.fullmatch(rf"{_DISP}\({_AREG}\)", low) or \
        re.fullmatch(rf"\({_DISP},{_AREG}\)", low):
