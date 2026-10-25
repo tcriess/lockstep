@@ -53,16 +53,66 @@ _RELOAD = """\
     moveq   #0,d4
 """
 
-# Exit test: MFP GPIP bit 4 is the keyboard ACIA's interrupt line (active low: a byte waits).
-# Branchless: pick the jump target from a table, constant cost.
-_EXIT_SELECT = """\
+# The loop's last instructions pick where to go: band 0, the exit, or (debug check) the halt.
+# Branchless, constant cost. d0 = table index, d6 = the check's error mask (-1 = drifted).
+_KEY_INDEX = """\
     moveq   #0,d0
     move.b  $fffffa01,d0        ; MFP GPIP (+4c): bit 4 low = the keyboard ACIA holds a byte
     and.w   #$10,d0
     lsr.w   #2,d0               ; 0 = a byte waits -> exit, 4 = carry on
+"""
+_ERR_INDEX = """\
+    move.w  d6,d1               ; a failed check wins: index 8, the halt
+    and.w   #8,d1
+    not.w   d6
+    and.w   d6,d0
+    or.w    d1,d0
+"""
+_JUMP = """\
     lea     __lo_next,a2
     move.l  (a2,d0.w),a2
+    jmp     (a2)
 """
+
+
+def _check(base_low: str | None) -> str:
+    """Debug check: the video counter's low byte at the same cycle of every frame must equal the
+    first frame's. `base_low` (a RAM mirror of the base low byte, or $ffff820d on an STE) is
+    subtracted, so a moving base does not trip it. Leaves the sticky error mask in d6."""
+    sub = (f"    moveq   #0,d5\n    move.b  {base_low},d5\n    sub.w   d5,d6\n    and.w   #$ff,d6\n"
+           if base_low else "")
+    return f"""\
+    moveq   #0,d6
+    move.b  $ffff8209,d6        ; video counter low byte, at the same cycle every frame
+{sub}    move.w  __lo_ref,d1         ; -1 until the first frame has stored its value
+    move.w  d1,d2
+    add.w   d2,d2
+    subx.w  d2,d2               ; -1 while unset
+    move.w  d1,d5
+    eor.w   d6,d5
+    and.w   d2,d5
+    eor.w   d5,d1               ; ref = unset ? this frame's value : ref
+    move.w  d1,__lo_ref
+    sub.w   d6,d1
+    neg.w   d1
+    subx.w  d1,d1               ; -1 iff this frame differs
+    or.w    __lo_err,d1
+    move.w  d1,__lo_err         ; sticky
+    move.w  d1,d6
+"""
+
+
+def _ikbd(cmds: list[int], tag: str) -> str:
+    """Send IKBD commands (untimed: setup and exit only)."""
+    out = []
+    for i, c in enumerate(cmds):
+        out.append(f"__lo_tx{tag}{i}:\n    btst    #1,$fffffc00\n    beq.s   __lo_tx{tag}{i}\n"
+                   f"    move.b  #${c:02x},$fffffc02")
+    return "\n".join(out) + "\n"
+
+
+IKBD_QUIET = [0x12, 0x1a]       # mouse off, joystick off: only keys reach the ACIA
+IKBD_RESTORE = [0x08, 0x14]     # relative mouse, joystick event reporting (TOS defaults)
 
 # Setup prefix: remember the main program's stack (the exit path returns to it), and, with the
 # exit test on, drain the keyboard ACIA until it has been quiet for ~0.25 s, so the release of the
@@ -87,17 +137,29 @@ __lo_idle:
     stop    #$2300               ; the first VBL enters the frame, which never returns
     bra.s   __lo_idle"""
 
-_EXIT = """\
+
+def _exit_code(ikbd: bool) -> str:
+    return f"""\
 __lo_exit:                       ; leave the loop: back on main's stack, TOS's VBL, interrupts on
     move.l  __lo_sp,sp
+{_ikbd(IKBD_RESTORE, "x") if ikbd else ""}\
     move.l  __oldvbl,$70.w
     move.w  #$2300,sr
     jmp     __exit
+__lo_halt:                       ; the debug check failed: red border, no more counting; a key exits
+    move.w  #$700,$ffff8240
+    btst    #4,$fffffa01
+    bne.s   __lo_halt
+    jmp     __lo_exit
     even
 __lo_next:
-    dc.l    __lo_exit,__band0
+    dc.l    __lo_exit,__band0,__lo_halt
 __lo_sp:
     dc.l    0
+__lo_ref:
+    dc.w    -1
+__lo_err:
+    dc.w    0
 """
 
 
@@ -108,7 +170,7 @@ def _expand(region: str, budget: int, what: str) -> str:
         out, _ = expand(spec)
     except PreprocessError as e:
         raise ValueError(f"{what} does not fit its {budget}c: {e}\nEvery frame of a lock-once "
-                         f"loop must cost exactly {FRAME_CYCLES}c; branches must be wrapped in "
+                         f"loop must cost exactly one frame; branches must be wrapped in "
                          f";@balance.") from None
     return out.rstrip("\n") + "\n"
 
@@ -117,20 +179,32 @@ class LockOnceFrame(OverscanFrame):
     """An `OverscanFrame` that syncs once and then counts (see the module docstring). Takes the
     same band arguments; `pre` is not available (there is no pause region: use `tail`).
 
-    `dance_to_band0` places the top-border dance (cycles from its first `eor` to `__band0`);
-    `exit_on_key` adds the MFP-based exit test to every frame."""
+    `dance_to_band0`  where the top-border dance sits (cycles from its first `eor` to `__band0`).
+    `exit_on_key`     test MFP GPIP bit 4 every frame; a waiting IKBD byte ends the program.
+    `ikbd_quiet`      with the exit test: mouse and joystick reporting off for the loop (only keys
+                      exit), restored on exit.
+    `check`           debug build: compare the video counter at a fixed cycle every frame with the
+                      first frame's; on a mismatch, halt with a red border (a key still exits).
+    `check_base`      a byte holding the video base's low byte, subtracted before comparing (a RAM
+                      mirror; `$ffff820d` on an STE-only program). None = the base never moves.
+    `frame_cycles`    the loop length. Anything but 160256 drifts: it exists to test `check`."""
 
     def __init__(self, *, dance_to_band0: int = DANCE_TO_BAND0, exit_on_key: bool = True,
-                 sync: SyncConfig = DEFAULT_SYNC, **kw):
+                 ikbd_quiet: bool = True, check: bool = False, check_base: str | None = None,
+                 frame_cycles: int = FRAME_CYCLES, sync: SyncConfig = DEFAULT_SYNC, **kw):
         if kw.get("pre"):
             raise ValueError("LockOnceFrame has no pause region: put per-frame work in `tail`")
         if sync.coarse != "none":
             raise ValueError("LockOnceFrame needs the $8209 lock (coarse='none')")
         super().__init__(sync=sync, **kw)
-        if dance_to_band0 % 4:
-            raise ValueError("dance_to_band0 must be a multiple of 4 cycles")
+        if dance_to_band0 % 4 or frame_cycles % 4:
+            raise ValueError("dance_to_band0 and frame_cycles must be multiples of 4 cycles")
         self.dance_to_band0 = dance_to_band0
         self.exit_on_key = exit_on_key
+        self.ikbd_quiet = ikbd_quiet
+        self.check = check
+        self.check_base = check_base
+        self.frame_cycles = frame_cycles
 
     @property
     def dance(self) -> str:
@@ -151,7 +225,25 @@ class LockOnceFrame(OverscanFrame):
     def tail_budget(self, upper: WorkStream | None = None,
                     lower: WorkStream | None = None) -> int:
         """Cycles per frame for `tail`: the frame minus the bands and the dance-to-band0 run."""
-        return FRAME_CYCLES - self.n_lines(upper, lower) * self.line_len - self.dance_to_band0
+        return self.frame_cycles - self.n_lines(upper, lower) * self.line_len - self.dance_to_band0
+
+    def expand_tail(self, tail: str, budget: int | None = None) -> str:
+        """Pad `tail` to the tail budget (ValueError if it does not fit): a fit test for callers
+        that size their per-frame work."""
+        return _expand((tail.rstrip("\n") + "\n" if tail.strip() else "") + ";@fill\n",
+                       self.tail_budget() if budget is None else budget, "the lock-once tail")
+
+    def _post(self, post: str) -> str:
+        """Band registers, then (after the fill, so at a fixed cycle) the check and the jump."""
+        text = (post.rstrip("\n") + "\n" if post.strip() else "") + _RELOAD + ";@fill\n"
+        if not (self.exit_on_key or self.check):
+            return text + "    jmp     __band0\n"
+        if self.check:
+            text += _check(self.check_base)
+        text += _KEY_INDEX if self.exit_on_key else "    moveq   #4,d0\n"
+        if self.check:
+            text += _ERR_INDEX
+        return text + _JUMP
 
     def frame_body(self, *, upper: WorkStream | None = None, lower: WorkStream | None = None,
                    tail: str = "", pre: str | None = None, post: str | None = None) -> str:
@@ -159,25 +251,18 @@ class LockOnceFrame(OverscanFrame):
             raise ValueError("LockOnceFrame has no pause region: put per-frame work in `tail`")
         post = self.post if post is None else post
         bands = self.bands(upper=upper, lower=lower)
-        lines = bands.n_lines * self.line_len
-        tail_budget = FRAME_CYCLES - lines - self.dance_to_band0
+        tail_budget = self.frame_cycles - bands.n_lines * self.line_len - self.dance_to_band0
         post_budget = self.dance_to_band0 - self.dance_cycles
-        loop_post = (post.rstrip("\n") + "\n" if post.strip() else "") + _RELOAD
-        if self.exit_on_key:
-            loop_post += _EXIT_SELECT + ";@fill\n    jmp     (a2)\n"
-        else:
-            loop_post += ";@fill\n    jmp     __band0\n"
         return (
             # frame 1: the VBL-mode prelude and lock, entered from the VBL (emit_program's
             # handler prologue is the same as VBL mode's, so the frame-1 dance lands as usual)
             self.sync.asm("", post)
             + "\n" + bands.asm
             + "* ---- lock-once loop: the tail, padded to the cycle ----\n"
-            + _expand((tail.rstrip("\n") + "\n" if tail.strip() else "") + ";@fill\n",
-                      tail_budget, "the lock-once tail")
+            + self.expand_tail(tail, tail_budget)
             + self.dance
-            + "* ---- post: band registers, exit test, back to band 0 ----\n"
-            + _expand(loop_post, post_budget, "the lock-once post region"))
+            + "* ---- post: band registers, check, exit test, back to band 0 ----\n"
+            + _expand(self._post(post), post_budget, "the lock-once post region"))
 
     def build(self, out_path: str, *, setup: str = "", extra: str = "",
               upper: WorkStream | None = None, lower: WorkStream | None = None,
@@ -191,7 +276,9 @@ class LockOnceFrame(OverscanFrame):
             if k in emit_kw:
                 raise ValueError(f"LockOnceFrame.build owns `{k}`")
         body = self.frame_body(upper=upper, lower=lower, tail=tail, pre=pre, post=post)
-        prefix = _SETUP_SP + (_SETUP_QUIET if self.exit_on_key else "")
-        src = emit_program(body, setup=prefix + setup, extra=_EXIT + extra, main=_MAIN,
-                           mask=True, **emit_kw)
+        ikbd = self.exit_on_key and self.ikbd_quiet
+        prefix = (_SETUP_SP + (_ikbd(IKBD_QUIET, "q") if ikbd else "")
+                  + (_SETUP_QUIET if self.exit_on_key else ""))
+        src = emit_program(body, setup=prefix + setup, extra=_exit_code(ikbd) + extra,
+                           main=_MAIN, mask=True, **emit_kw)
         return build_tos(src, out_path)

@@ -30,9 +30,11 @@ def _strip_pragmas(asm: str) -> str:
     return "\n".join(l for l in asm.splitlines() if not l.strip().startswith(";@"))
 
 
-@pytest.mark.parametrize("exit_on_key", [True, False])
-def test_loop_is_one_frame(exit_on_key):
-    f = LockOnceFrame(exit_on_key=exit_on_key, **STD)
+@pytest.mark.parametrize("exit_on_key,check", [(True, False), (False, False), (True, True),
+                                                (False, True)])
+def test_loop_is_one_frame(exit_on_key, check):
+    f = LockOnceFrame(exit_on_key=exit_on_key, check=check, check_base="__lo_err" if check else None,
+                      **STD)
     tail = "    addq.l  #1,$1000.w\n"
     loop = _loop(f.frame_body(tail=tail))
     assert block_cycles(_strip_pragmas(loop))[1] == FRAME_CYCLES

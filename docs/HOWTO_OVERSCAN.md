@@ -496,7 +496,20 @@ What changes for the author:
   frame. The exit test reads MFP GPIP bit 4 instead (the ACIA's interrupt line, low while a byte
   waits; a fixed +4c MFP access): any key, mouse or joystick byte ends the program. Setup drains
   the ACIA until it has been quiet for ~0.25 s, so the key that launched the program does not
-  end it. `exit_on_key=False` drops the test (`jmp __band0` only).
+  end it. `exit_on_key=False` drops the test (`jmp __band0` only). The loop also turns IKBD mouse
+  and joystick reporting off (`$12`, `$1A`), so only keys exit, and restores them on the way out
+  (`ikbd_quiet=False` keeps them on).
+- **Debug check** (`check=True`): every frame reads the video counter (`$ff8209`) at the same
+  cycle and compares it with the first frame's value; on a mismatch the loop jumps to a halt with
+  a red border (a key still exits). A loop 4 cycles too long trips it on the second frame
+  (`frame_cycles=` exists to test exactly that). With a moving base pass `check_base=`, a byte
+  holding the base's low byte, which is subtracted first.
+- **The cost model must be right, not just close.** VBL mode re-locks every frame, so a few
+  cycles of model error in `pre` or the tail only nudge the dance. In a lock-once loop they
+  accumulate: porting a real demo found indexed `lea`/`pea` 4c short at phase 0 and `(an,xn)` /
+  `d(pc,xn)` operands parsed as absolute addresses (both fixed, `tests/test_indexed.py`). When a
+  loop drifts, time `__band0 -> __lo_dance -> __band0` in Hatari: the segment that is off holds
+  the culprit.
 - `pre` does not exist (no pause region); `post` runs in frame 1's post-lock window and again
   every frame before band 0.
 
