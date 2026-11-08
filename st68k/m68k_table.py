@@ -296,10 +296,10 @@ def _movem(line: AsmLine, sz) -> Cost:
 
 
 def _add_sub(m, src, dst, sz, line) -> Cost:
+    if dst == Mode.AREG:                         # also with an immediate: the assembler emits ADDA/SUBA
+        return _adda_suba(src, sz)
     if src == Mode.IMM:
         return _imm_alu(dst, sz, to_dn_bw=8, to_dn_l=16, to_mem_bw=12, to_mem_l=20)
-    if dst == Mode.AREG:
-        return _adda_suba(src, sz)
     if dst == Mode.DREG:                         # <ea>,Dn
         return _alu_to_dn(src, sz)
     return _alu_to_mem(dst, sz)                   # Dn,<ea>

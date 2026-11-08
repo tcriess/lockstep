@@ -153,3 +153,10 @@ def _run():
 
 if __name__ == "__main__":
     _run()
+
+
+def test_add_sub_immediate_to_address_register_is_adda():
+    from st68k.annotate import block_cycles
+    for line, c in (("add.w #32,a6", 12), ("sub.w #32,a6", 12), ("add.l #32,a6", 16), ("sub.l #32,a6", 16),
+                    ("adda.w #32,a6", 12), ("add.w #32,d0", 8), ("add.l #32,d0", 16)):
+        assert block_cycles(f"    {line}\n")[1] == c, line
